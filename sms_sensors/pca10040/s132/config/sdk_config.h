@@ -16,28 +16,28 @@
 
 
 #ifndef SPI_SCK_PIN
-#define SPI_SCK_PIN 3
+#define SPI_SCK_PIN 19
 #endif
 
 // <o> SPI_MISO_PIN - Pin number  <0-31> 
 
 
 #ifndef SPI_MISO_PIN
-#define SPI_MISO_PIN 28
+#define SPI_MISO_PIN 20
 #endif
 
 // <o> SPI_MOSI_PIN - Pin number  <0-31> 
 
 
 #ifndef SPI_MOSI_PIN
-#define SPI_MOSI_PIN 4
+#define SPI_MOSI_PIN 22
 #endif
 
 // <o> SPI_SS_PIN - Pin number  <0-31> 
 
 
 #ifndef SPI_SS_PIN
-#define SPI_SS_PIN 29
+#define SPI_SS_PIN 23
 #endif
 
 // <o> SPI_IRQ_PRIORITY  - Interrupt priority
@@ -2354,7 +2354,7 @@
 // <e> TIMER_ENABLED - nrf_drv_timer - TIMER periperal driver
 //==========================================================
 #ifndef TIMER_ENABLED
-#define TIMER_ENABLED 0
+#define TIMER_ENABLED 1
 #endif
 #if  TIMER_ENABLED
 // <o> TIMER_DEFAULT_CONFIG_FREQUENCY  - Timer frequency if in Timer mode
@@ -3113,7 +3113,7 @@
 // <i> This option can be used when app_timer is used for timestamping.
 
 #ifndef APP_TIMER_KEEPS_RTC_ACTIVE
-#define APP_TIMER_KEEPS_RTC_ACTIVE 0
+#define APP_TIMER_KEEPS_RTC_ACTIVE 1
 #endif
 
 #endif //APP_TIMER_ENABLED
@@ -3605,7 +3605,7 @@
 // <e> NRF_LOG_ENABLED - nrf_log - Logging
 //==========================================================
 #ifndef NRF_LOG_ENABLED
-#define NRF_LOG_ENABLED 0
+#define NRF_LOG_ENABLED 1
 #endif
 #if  NRF_LOG_ENABLED
 // <e> NRF_LOG_USES_COLORS - If enabled then ANSI escape code for colors is prefixed to every string

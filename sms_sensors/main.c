@@ -33,6 +33,8 @@
 #include "bsp.h"
 #include "ble_gap.h"
 #include "nrf_drv_spi.h"
+#include "ms58.h"
+#include "nrf_delay.h"
 
 #define NRF_LOG_MODULE_NAME "APP"
 #include "nrf_log.h"
@@ -80,13 +82,17 @@
 static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;    /**< Handle of the current connection. */
 static ble_lbs_t                        m_lbs;                                      /**< LED Button Service instance. */
 
-#define SPI_INSTANCE  0 /**< SPI instance index. */
-static const nrf_drv_spi_t spi = NRF_DRV_SPI_INSTANCE(SPI_INSTANCE);  /**< SPI instance. */
-static volatile bool spi_xfer_done;  /**< Flag used to indicate that SPI instance completed the transfer. */
-#define TEST_STRING "Nordic"
-static uint8_t       m_tx_buf[] = TEST_STRING;           /**< TX buffer. */
-static uint8_t       m_rx_buf[sizeof(TEST_STRING) + 1];    /**< RX buffer. */
-static const uint8_t m_length = sizeof(m_tx_buf);        /**< Transfer length. */
+#define SPI_INSTANCE  0																/**< SPI instance index. */
+static const nrf_drv_spi_t spi = NRF_DRV_SPI_INSTANCE(SPI_INSTANCE);  				/**< SPI instance. */
+static volatile bool spi_xfer_done;													/**< Flag used to indicate that SPI instance completed the transfer. */
+#define SPI_MAX_LENGTH					100
+static uint8_t       m_tx_buf[SPI_MAX_LENGTH] = {0};								/**< TX buffer. */
+static uint8_t       m_rx_buf[sizeof(SPI_MAX_LENGTH) + 1];							/**< RX buffer. */
+static const uint8_t m_length = sizeof(m_tx_buf);									/**< Transfer length. */
+
+
+APP_TIMER_DEF(periph_init_timer_id);
+static volatile bool periph_init_timer_done;
 
 
 /**@brief Function for assert macro callback.
@@ -124,6 +130,19 @@ static void timers_init(void)
 {
     // Initialize timer module, making it use the scheduler
     APP_TIMER_INIT(APP_TIMER_PRESCALER, APP_TIMER_OP_QUEUE_SIZE, false);
+}
+
+static void periph_init_timer_handler(void * p_context)
+{
+	periph_init_timer_done = true;
+	NRF_LOG_INFO("Timer handled!\n\r");
+}
+
+static void timer_create(void)
+{
+	uint32_t err_code;
+	err_code = app_timer_create(&periph_init_timer_id, APP_TIMER_MODE_SINGLE_SHOT, periph_init_timer_handler);
+	APP_ERROR_CHECK(err_code);
 }
 
 
@@ -553,6 +572,16 @@ static void power_manage(void)
 }
 
 
+static void ms58_reset(void)
+{
+	NRF_LOG_INFO("Resetting MS58\n\r");
+	memset(m_rx_buf, 0, m_length);
+	m_tx_buf[0] = MS58_RESET;
+	spi_xfer_done = false;
+	APP_ERROR_CHECK(nrf_drv_spi_transfer(&spi, m_tx_buf, m_length, m_rx_buf, m_length));
+	while(!spi_xfer_done) {};
+}
+
 /**@brief Function for application main entry.
  */
 int main(void)
@@ -562,6 +591,7 @@ int main(void)
     // Initialize.
     leds_init();
     timers_init();
+	timer_create();
     err_code = NRF_LOG_INIT(NULL);
     APP_ERROR_CHECK(err_code);
     buttons_init();
@@ -570,6 +600,24 @@ int main(void)
     services_init();
     advertising_init();
     conn_params_init();
+	
+//	spi_init();
+	
+	while(1)
+	{
+//		NRF_LOG_INFO("Entering.. ");
+		nrf_delay_ms(2000);
+		bsp_board_led_on(LEDBUTTON_LED_PIN);
+//		ms58_reset();
+//		periph_init_timer_done = false;
+//		app_timer_start(periph_init_timer_id, APP_TIMER_TICKS(1000, APP_TIMER_PRESCALER), NULL);
+//		APP_ERROR_CHECK(err_code);
+//		while(!periph_init_timer_done) {};
+//		NRF_LOG_INFO("exiting!\r\n");
+		nrf_delay_ms(1000);
+		bsp_board_led_off(LEDBUTTON_LED_PIN);
+	}
+	
 
     // Start execution.
     NRF_LOG_INFO("Blinky Start!\r\n");
