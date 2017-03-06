@@ -16,28 +16,28 @@
 
 
 #ifndef SPI_SCK_PIN
-#define SPI_SCK_PIN 19
+#define SPI_SCK_PIN 29
 #endif
 
 // <o> SPI_MISO_PIN - Pin number  <0-31> 
 
 
 #ifndef SPI_MISO_PIN
-#define SPI_MISO_PIN 20
+#define SPI_MISO_PIN 28
 #endif
 
 // <o> SPI_MOSI_PIN - Pin number  <0-31> 
 
 
 #ifndef SPI_MOSI_PIN
-#define SPI_MOSI_PIN 22
+#define SPI_MOSI_PIN 27
 #endif
 
 // <o> SPI_SS_PIN - Pin number  <0-31> 
 
 
 #ifndef SPI_SS_PIN
-#define SPI_SS_PIN 23
+#define SPI_SS_PIN 30
 #endif
 
 // <o> SPI_IRQ_PRIORITY  - Interrupt priority

@@ -29,6 +29,7 @@
 #include "softdevice_handler.h"
 #include "app_timer.h"
 #include "app_button.h"
+#include "app_util_platform.h"
 #include "ble_lbs.h"
 #include "bsp.h"
 #include "ble_gap.h"
@@ -83,12 +84,12 @@ static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;
 static ble_lbs_t                        m_lbs;                                      /**< LED Button Service instance. */
 
 #define SPI_INSTANCE  0																/**< SPI instance index. */
-static const nrf_drv_spi_t spi = NRF_DRV_SPI_INSTANCE(SPI_INSTANCE);  				/**< SPI instance. */
+static const nrf_drv_spi_t spi_master_instance = NRF_DRV_SPI_INSTANCE(SPI_INSTANCE);  	/**< SPI instance. */
 static volatile bool spi_xfer_done;													/**< Flag used to indicate that SPI instance completed the transfer. */
 #define SPI_MAX_LENGTH					100
-static uint8_t       m_tx_buf[SPI_MAX_LENGTH] = {0};								/**< TX buffer. */
-static uint8_t       m_rx_buf[sizeof(SPI_MAX_LENGTH) + 1];							/**< RX buffer. */
-static const uint8_t m_length = sizeof(m_tx_buf);									/**< Transfer length. */
+static uint8_t       					m_tx_buf[SPI_MAX_LENGTH] = {0};				/**< TX buffer. */
+static uint8_t							m_rx_buf[sizeof(SPI_MAX_LENGTH) + 1];		/**< RX buffer. */
+static uint8_t							m_length = 0;								/**< Transfer length. */
 
 
 APP_TIMER_DEF(periph_init_timer_id);
@@ -541,12 +542,12 @@ static void buttons_init(void)
 void spi_event_handler(nrf_drv_spi_evt_t const * p_event)
 {
     spi_xfer_done = true;
-    NRF_LOG_INFO("Transfer completed.\r\n");
-    if (m_rx_buf[0] != 0)
-    {
-        NRF_LOG_INFO(" Received: \r\n");
-        NRF_LOG_HEXDUMP_INFO(m_rx_buf, strlen((const char *)m_rx_buf));
-    }
+//    NRF_LOG_INFO("Transfer completed.\r\n");
+//    if (m_rx_buf[0] != 0)
+//    {
+//        NRF_LOG_INFO(" Received: \r\n");
+//        NRF_LOG_HEXDUMP_INFO(m_rx_buf, strlen((const char *)m_rx_buf));
+//    }
 }
 
 
@@ -559,7 +560,7 @@ static void spi_init(void)
 	spi_config.miso_pin = SPI_MISO_PIN;
 	spi_config.mosi_pin = SPI_MOSI_PIN;
 	spi_config.sck_pin = SPI_SCK_PIN;
-	APP_ERROR_CHECK(nrf_drv_spi_init(&spi, &spi_config, spi_event_handler));
+	APP_ERROR_CHECK(nrf_drv_spi_init(&spi_master_instance, &spi_config, spi_event_handler));
 }
 
 /**@brief Function for the Power Manager.
@@ -574,11 +575,12 @@ static void power_manage(void)
 
 static void ms58_reset(void)
 {
-	NRF_LOG_INFO("Resetting MS58\n\r");
+//	NRF_LOG_INFO("Resetting MS58\n\r");
 	memset(m_rx_buf, 0, m_length);
 	m_tx_buf[0] = MS58_RESET;
 	spi_xfer_done = false;
-	APP_ERROR_CHECK(nrf_drv_spi_transfer(&spi, m_tx_buf, m_length, m_rx_buf, m_length));
+	m_length = 1;
+	APP_ERROR_CHECK(nrf_drv_spi_transfer(&spi_master_instance, m_tx_buf, m_length, m_rx_buf, 0));
 	while(!spi_xfer_done) {};
 }
 
@@ -595,26 +597,27 @@ int main(void)
     err_code = NRF_LOG_INIT(NULL);
     APP_ERROR_CHECK(err_code);
     buttons_init();
+
     ble_stack_init();
     gap_params_init();
     services_init();
     advertising_init();
     conn_params_init();
 	
-//	spi_init();
+	spi_init();
 	
 	while(1)
 	{
 //		NRF_LOG_INFO("Entering.. ");
-		nrf_delay_ms(2000);
+		nrf_delay_ms(1000);
 		bsp_board_led_on(LEDBUTTON_LED_PIN);
-//		ms58_reset();
+		ms58_reset();
 //		periph_init_timer_done = false;
 //		app_timer_start(periph_init_timer_id, APP_TIMER_TICKS(1000, APP_TIMER_PRESCALER), NULL);
 //		APP_ERROR_CHECK(err_code);
 //		while(!periph_init_timer_done) {};
 //		NRF_LOG_INFO("exiting!\r\n");
-		nrf_delay_ms(1000);
+		nrf_delay_ms(500);
 		bsp_board_led_off(LEDBUTTON_LED_PIN);
 	}
 	
