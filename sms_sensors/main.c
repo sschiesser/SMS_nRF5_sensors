@@ -37,6 +37,7 @@
 #include "ms58.h"
 #include "nrf_delay.h"
 #include "SEGGER_RTT.h"
+#include "nrf_drv_twi.h"
 
 #define NRF_LOG_MODULE_NAME "APP"
 #include "nrf_log.h"
@@ -92,6 +93,11 @@ static uint8_t       					m_tx_buf[SPI_MAX_LENGTH] = {0};				/**< TX buffer. */
 static uint8_t							m_rx_buf[sizeof(SPI_MAX_LENGTH) + 1];		/**< RX buffer. */
 
 struct ms58_output_s					ms58_output;
+
+#define TWI_INSTANCE 1
+static const nrf_drv_twi_t twi_master_instance = NRF_DRV_TWI_INSTANCE(TWI_INSTANCE);
+static volatile bool twi_xfer_done;
+
 
 APP_TIMER_DEF(periph_init_timer_id);
 static volatile bool periph_init_timer_done;
@@ -551,6 +557,18 @@ void spi_event_handler(nrf_drv_spi_evt_t const * p_event)
 //    }
 }
 
+void twi_event_handler(nrf_drv_twi_evt_t const * p_event, void * p_context)
+{
+	switch(p_event->type)
+	{
+		case NRF_DRV_TWI_EVT_DONE:
+			twi_xfer_done = true;
+			break;
+		default:
+			break;
+	}	
+}
+
 
 /**@brief Function for initializing the SPI module.
  */
@@ -564,6 +582,25 @@ static void spi_init(void)
 	spi_config.mode = NRF_DRV_SPI_MODE_0;
 	spi_config.frequency = NRF_DRV_SPI_FREQ_500K;
 	APP_ERROR_CHECK(nrf_drv_spi_init(&spi_master_instance, &spi_config, spi_event_handler));
+}
+
+/**@brief Function for initializing the TWI module.
+ */
+static void twi_init(void)
+{
+	ret_code_t err_code;
+	const nrf_drv_twi_config_t twi_config = {
+		.scl				= TWI_SCL_PIN,
+		.sda				= TWI_SDA_PIN,
+		.frequency			= NRF_TWI_FREQ_100K,
+		.interrupt_priority = APP_IRQ_PRIORITY_HIGH,
+		.clear_bus_init		= false
+		};
+	
+		err_code = nrf_drv_twi_init(&twi_master_instance, &twi_config, twi_event_handler, NULL);
+		APP_ERROR_CHECK(err_code);
+		
+		nrf_drv_twi_enable(&twi_master_instance);
 }
 
 /**@brief Function for the Power Manager.
@@ -767,22 +804,18 @@ int main(void)
     conn_params_init();
 	
 	spi_init();
+	twi_init();
+	
 	ms58_reset();
 	ms58_read_prom();
-//	SEGGER_RTT_printf(0, "PROM 1: %lu\nPROM 2: %lu\nPROM 3: %lu\nPROM 4: %lu\nPROM 5: %lu\nPROM 6: %lu\n",\
-//					ms58_output.prom_values[1], ms58_output.prom_values[2], ms58_output.prom_values[3],\
-//					ms58_output.prom_values[4], ms58_output.prom_values[5], ms58_output.prom_values[6]);
 	ms58_output.complete = false;
 	
 	while(1)
 	{
-//		NRF_LOG_INFO("Entering.. ");
 		nrf_delay_ms(100);
 		bsp_board_led_on(LEDBUTTON_LED_PIN);
 		
 		ms58_read_data();
-//		SEGGER_RTT_printf(0, "ADC[PRESS]: %ld, ADC[TEMP]: %ld\n", ms58_output.adc_values[MS58_TYPE_PRESS],\
-//					ms58_output.adc_values[MS58_TYPE_TEMP]);
 		if(ms58_output.complete) {
 			ms58_calculate();
 			SEGGER_RTT_printf(0, "Pressure: %ld, Temperature: %ld\n", ms58_output.pressure, ms58_output.temperature);
