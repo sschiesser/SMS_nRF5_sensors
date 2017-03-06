@@ -562,7 +562,7 @@ static void spi_init(void)
 	spi_config.mosi_pin = SPI_MOSI_PIN;
 	spi_config.sck_pin = SPI_SCK_PIN;
 	spi_config.mode = NRF_DRV_SPI_MODE_0;
-	spi_config.frequency = NRF_DRV_SPI_FREQ_1M;
+	spi_config.frequency = NRF_DRV_SPI_FREQ_500K;
 	APP_ERROR_CHECK(nrf_drv_spi_init(&spi_master_instance, &spi_config, spi_event_handler));
 }
 
@@ -636,13 +636,7 @@ static void ms58_read_prom(void)
 	while(!spi_xfer_done) {};
 	ms58_output.prom_values[6] = (m_rx_buf[1] << 8 | m_rx_buf[2]);
 
-	memset(m_rx_buf, 0, rx_len);
-	m_tx_buf[0] = MS58_PROM_READ_7;
-	spi_xfer_done = false;
-	APP_ERROR_CHECK(nrf_drv_spi_transfer(&spi_master_instance, m_tx_buf, tx_len, m_rx_buf, rx_len));
-	while(!spi_xfer_done) {};
-	ms58_output.prom_values[7] = (m_rx_buf[1] << 8 | m_rx_buf[2]);
-	
+
 	// Send the first conversion command
 	tx_len = 1;
 	rx_len = 0;
@@ -667,14 +661,14 @@ static void ms58_read_data(void)
 	while(!spi_xfer_done) {};
 
 	if(ms58_output.complete) {
-		ms58_output.adc_values[MS58_TYPE_TEMP] = ((m_rx_buf[1] << 16) | (m_rx_buf[2] << 8) | (m_rx_buf[3]));
+		ms58_output.adc_values[MS58_TYPE_PRESS] = ((m_rx_buf[1] << 16) | (m_rx_buf[2] << 8) | (m_rx_buf[3]));
 //		SEGGER_RTT_printf(0, "ADC value[MS58_TYPE_TEMP]: 0x%02x %02x %02x\n", m_rx_buf[1], m_rx_buf[2], m_rx_buf[3]);
-		m_tx_buf[0] = MS58_CONV_D1_4096;
+		m_tx_buf[0] = MS58_CONV_D2_4096;
 	}
 	else {
-		ms58_output.adc_values[MS58_TYPE_PRESS] = ((m_rx_buf[1] << 16) | (m_rx_buf[2] << 8) | (m_rx_buf[3]));
+		ms58_output.adc_values[MS58_TYPE_TEMP] = ((m_rx_buf[1] << 16) | (m_rx_buf[2] << 8) | (m_rx_buf[3]));
 //		SEGGER_RTT_printf(0, "ADC value[MS58_TYPE_PRESS]: 0x%02x %02x %02x\n", m_rx_buf[1], m_rx_buf[2], m_rx_buf[3]);
-		m_tx_buf[0] = MS58_CONV_D2_4096;
+		m_tx_buf[0] = MS58_CONV_D1_4096;
 	}
 	tx_len = 1;
 	rx_len = 0;
@@ -775,19 +769,20 @@ int main(void)
 	spi_init();
 	ms58_reset();
 	ms58_read_prom();
-	SEGGER_RTT_printf(0, "PROM 1: 0x%04x\nPROM 2: 0x%04x\nPROM 3: 0x%04x\nPROM 4: 0x%04x\nPROM 5: 0x%04x\nPROM 6: 0x%04x\nPROM 7: 0x%04x\n",\
-					ms58_output.prom_values[1], ms58_output.prom_values[2], ms58_output.prom_values[3],\
-					ms58_output.prom_values[4], ms58_output.prom_values[5], ms58_output.prom_values[6],\
-					ms58_output.prom_values[7]);
+//	SEGGER_RTT_printf(0, "PROM 1: %lu\nPROM 2: %lu\nPROM 3: %lu\nPROM 4: %lu\nPROM 5: %lu\nPROM 6: %lu\n",\
+//					ms58_output.prom_values[1], ms58_output.prom_values[2], ms58_output.prom_values[3],\
+//					ms58_output.prom_values[4], ms58_output.prom_values[5], ms58_output.prom_values[6]);
 	ms58_output.complete = false;
 	
 	while(1)
 	{
 //		NRF_LOG_INFO("Entering.. ");
-		nrf_delay_ms(1000);
+		nrf_delay_ms(100);
 		bsp_board_led_on(LEDBUTTON_LED_PIN);
 		
 		ms58_read_data();
+//		SEGGER_RTT_printf(0, "ADC[PRESS]: %ld, ADC[TEMP]: %ld\n", ms58_output.adc_values[MS58_TYPE_PRESS],\
+//					ms58_output.adc_values[MS58_TYPE_TEMP]);
 		if(ms58_output.complete) {
 			ms58_calculate();
 			SEGGER_RTT_printf(0, "Pressure: %ld, Temperature: %ld\n", ms58_output.pressure, ms58_output.temperature);
@@ -797,7 +792,7 @@ int main(void)
 			ms58_output.complete = true;
 		}
 		
-		nrf_delay_ms(500);
+		nrf_delay_ms(50);
 		bsp_board_led_off(LEDBUTTON_LED_PIN);
 	}
 
