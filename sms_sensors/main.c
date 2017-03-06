@@ -773,8 +773,7 @@ int main(void)
 		ms58_read_data();
 		if(ms58_data_complete) {
 			ms58_calculate();
-//			SEGGER_RTT_printf(0, "Pressure: %ld, ", ms58_output.pressure);
-			SEGGER_RTT_WriteString(0, "Temperature:\n");
+			SEGGER_RTT_printf(0, "Pressure: %lu, Temperature: %lu\n", ms58_output.pressure, ms58_output.temperature);
 			ms58_data_complete = false;
 		}
 		else {
@@ -784,7 +783,6 @@ int main(void)
 		nrf_delay_ms(500);
 		bsp_board_led_off(LEDBUTTON_LED_PIN);
 	}
-//	
 
     // Start execution.
     NRF_LOG_INFO("Blinky Start!\r\n");
