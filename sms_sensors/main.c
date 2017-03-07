@@ -865,7 +865,6 @@ static void mpu9250_calibrate(float *dest1, float *dest2)
 	writeByte(MPU9250_ADDRESS, PWR_MGMT_2, 0x00);
 	nrf_delay_ms(200);
 
-	/*	
 	// Configure device for bias calculation
 	writeByte(MPU9250_ADDRESS, INT_ENABLE, 0x00);   // Disable all interrupts
 	writeByte(MPU9250_ADDRESS, FIFO_EN, 0x00);      // Disable FIFO
@@ -999,8 +998,13 @@ static void mpu9250_calibrate(float *dest1, float *dest2)
 	dest2[0] = (float)accel_bias[0]/(float)accelsensitivity;
 	dest2[1] = (float)accel_bias[1]/(float)accelsensitivity;
 	dest2[2] = (float)accel_bias[2]/(float)accelsensitivity;
-	*/
 }
+
+static void mpu9250_initialize(void)
+{
+	
+}
+
 /**@brief Function for application main entry.
  */
 int main(void)
@@ -1025,8 +1029,9 @@ int main(void)
 	twi_init();
 	
 	if(!mpu9250_check()){
-		SEGGER_RTT_printf(0, "mpu9250 is present");
+		SEGGER_RTT_printf(0, "mpu9250 is present\n");
 		mpu9250_calibrate(mpu9250_config.gyro_bias, mpu9250_config.accel_bias);
+		mpu9250_initialize();
 	}
 	
 	ms58_reset();
