@@ -20,25 +20,26 @@
 #include <string.h>
 #include "nordic_common.h"
 #include "nrf.h"
+#include "softdevice_handler.h"
 #include "app_error.h"
+#include "app_timer.h"
+#include "app_button.h"
+#include "app_util_platform.h"
 #include "ble.h"
 #include "ble_hci.h"
 #include "ble_srv_common.h"
 #include "ble_advdata.h"
 #include "ble_conn_params.h"
-#include "softdevice_handler.h"
-#include "app_timer.h"
-#include "app_button.h"
-#include "app_util_platform.h"
 #include "ble_lbs.h"
-#include "bsp.h"
 #include "ble_gap.h"
+#include "bsp.h"
 #include "nrf_drv_spi.h"
-#include "ms58.h"
-#include "mpu9250.h"
+#include "nrf_drv_twi.h"
+#include "nrf_drv_gpiote.h"
 #include "nrf_delay.h"
 #include "SEGGER_RTT.h"
-#include "nrf_drv_twi.h"
+#include "ms58.h"
+#include "mpu9250.h"
 
 #define NRF_LOG_MODULE_NAME "APP"
 #include "nrf_log.h"
@@ -573,6 +574,24 @@ void twi_event_handler(nrf_drv_twi_evt_t const * p_event, void * p_context)
 	}	
 }
 
+void pin_change_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
+{
+	SEGGER_RTT_printf(0, "DRDY!\n");
+	bsp_board_led_invert(LEDBUTTON_LED_PIN);
+}
+
+
+static void gpio_init(void)
+{
+	ret_code_t err_code;
+	
+	nrf_drv_gpiote_in_config_t in_config = GPIOTE_CONFIG_IN_SENSE_LOTOHI(true);
+	in_config.pull = NRF_GPIO_PIN_PULLDOWN;
+	err_code = nrf_drv_gpiote_in_init(DRDY_INT_PIN, &in_config, pin_change_handler);
+	APP_ERROR_CHECK(err_code);
+	
+	nrf_drv_gpiote_in_event_enable(DRDY_INT_PIN, true);
+}
 
 /**@brief Function for initializing the SPI module.
  */
@@ -1092,6 +1111,8 @@ static void mpu9250_comp_initialize(float *destination)
 	nrf_delay_ms(10);
 }
 
+
+
 /**@brief Function for application main entry.
  */
 int main(void)
@@ -1113,8 +1134,11 @@ int main(void)
     conn_params_init();
 	
 	spi_init();
+	ms58_reset();
+	ms58_read_prom();
+	ms58_output.complete = false;
+
 	twi_init();
-	
 	if(!mpu9250_check()) {
 		SEGGER_RTT_printf(0, "mpu9250 is present\n");
 		mpu9250_calibrate(mpu9250_config.gyro_bias, mpu9250_config.accel_bias);
@@ -1125,12 +1149,10 @@ int main(void)
 		mpu9250_comp_initialize(mpu9250_config.mag_calibration);
 	}
 	
-	ms58_reset();
-	ms58_read_prom();
-	ms58_output.complete = false;
+	gpio_init();
 	
-//	while(1)
-//	{
+	while(1)
+	{
 //		nrf_delay_ms(100);
 //		bsp_board_led_on(LEDBUTTON_LED_PIN);
 //		
@@ -1146,7 +1168,7 @@ int main(void)
 //		
 //		nrf_delay_ms(50);
 //		bsp_board_led_off(LEDBUTTON_LED_PIN);
-//	}
+	}
 
     // Start execution.
     NRF_LOG_INFO("Blinky Start!\r\n");
