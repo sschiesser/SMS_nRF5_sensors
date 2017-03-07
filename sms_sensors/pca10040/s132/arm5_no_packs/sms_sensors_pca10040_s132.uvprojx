@@ -399,6 +399,16 @@
               <FileType>5</FileType>
               <FilePath>..\..\..\mpu9250.h</FilePath>
             </File>
+            <File>
+              <FileName>sms_imu.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\sms_imu.c</FilePath>
+            </File>
+            <File>
+              <FileName>sms_imu.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\..\..\sms_imu.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -2340,6 +2350,16 @@
               <FileName>mpu9250.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\..\..\mpu9250.h</FilePath>
+            </File>
+            <File>
+              <FileName>sms_imu.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\sms_imu.c</FilePath>
+            </File>
+            <File>
+              <FileName>sms_imu.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\..\..\sms_imu.h</FilePath>
             </File>
           </Files>
         </Group>

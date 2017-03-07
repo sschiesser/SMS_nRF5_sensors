@@ -5,9 +5,11 @@
  *  Author: sschies1
  */ 
 
-
 #ifndef MPU9250_H_
 #define MPU9250_H_
+
+#include <stdio.h>
+#include <stdbool.h>
 
 #define ADO 1
 #if ADO
