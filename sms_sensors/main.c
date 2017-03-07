@@ -831,19 +831,9 @@ static void ms58_calculate(void)
 static int mpu9250_check(void)
 {
 	int ret = -1;
-	twi_xfer_done = false;
-	uint8_t reg[1] = {WHO_AM_I_MPU9250};
-	ret_code_t err_code = nrf_drv_twi_tx(&twi_master_instance, MPU9250_ADDRESS, reg, sizeof(reg), false);
-	APP_ERROR_CHECK(err_code);
-	while(!twi_xfer_done) {};
-		
-	uint8_t read_sample;
-	twi_xfer_done = false;
-	err_code = nrf_drv_twi_rx(&twi_master_instance, MPU9250_ADDRESS, &read_sample, sizeof(read_sample));
-	APP_ERROR_CHECK(err_code);
-	while(!twi_xfer_done) {};
-	if(read_sample == 0x71) ret = 0;
-		
+	uint8_t c = readByte(MPU9250_ADDRESS, WHO_AM_I_MPU9250);
+	if(c == 0x71) ret = 0;
+
 	return ret;
 }
 
@@ -1002,7 +992,104 @@ static void mpu9250_calibrate(float *dest1, float *dest2)
 
 static void mpu9250_initialize(void)
 {
+	// wake up device
+	writeByte(MPU9250_ADDRESS, PWR_MGMT_1, 0x00); // Clear sleep mode bit (6), enable all sensors
+	nrf_delay_ms(100); // Wait for all registers to reset
+
+	// get stable time source
+	writeByte(MPU9250_ADDRESS, PWR_MGMT_1, 0x01);  // Auto select clock source to be PLL gyroscope reference if ready else
+	nrf_delay_ms(200);
 	
+	// Configure Gyro and Thermometer
+	// Disable FSYNC and set thermometer and gyro bandwidth to 41 and 42 Hz, respectively;
+	// minimum delay time for this setting is 5.9 ms, which means sensor fusion update rates cannot
+	// be higher than 1 / 0.0059 = 170 Hz
+	// DLPF_CFG = bits 2:0 = 011; this limits the sample rate to 1000 Hz for both
+	// With the MPU9250, it is possible to get gyro sample rates of 32 kHz (!), 8 kHz, or 1 kHz
+	 //writeByte(MPU9250_ADDRESS, CONFIG, 0x03);
+	writeByte(MPU9250_ADDRESS, CONFIG, 0x05);		// gyro bandwidth = 10 Hz, delay = 17.85 ms -> max rate = 56 Hz
+
+	// Set sample rate = gyroscope output rate/(1 + SMPLRT_DIV)
+	//writeByte(MPU9250_ADDRESS, SMPLRT_DIV, 0x0A);  	// Use a 90 Hz rate; a rate consistent with the filter update rate
+	// // determined inset in CONFIG above
+	writeByte(MPU9250_ADDRESS, SMPLRT_DIV, 0x63);  	// Use a 10 Hz rate; a rate consistent with the filter update rate
+	
+	// Set gyroscope full scale range
+	// Range selects FS_SEL and AFS_SEL are 0 - 3, so 2-bit values are left-shifted into positions 4:3
+	uint8_t c = readByte(MPU9250_ADDRESS, GYRO_CONFIG); // get current GYRO_CONFIG register value
+	// c = c & ~0xE0; // Clear self-test bits [7:5]
+	c = c & ~0x02; // Clear Fchoice bits [1:0]
+	c = c & ~0x18; // Clear AFS bits [4:3]
+	c = c | (mpu9250_config.g_scale << 3); // Set full scale range for the gyro
+	// c =| 0x00; // Set Fchoice for the gyro to 11 by writing its inverse to bits 1:0 of GYRO_CONFIG
+	writeByte(MPU9250_ADDRESS, GYRO_CONFIG, c ); // Write new GYRO_CONFIG value to register
+	
+	// Set accelerometer full-scale range configuration
+	c = readByte(MPU9250_ADDRESS, ACCEL_CONFIG); // get current ACCEL_CONFIG register value
+	// c = c & ~0xE0; // Clear self-test bits [7:5]
+	c = c & ~0x18;  // Clear AFS bits [4:3]
+	c = c | (mpu9250_config.a_scale << 3); // Set full scale range for the accelerometer
+	writeByte(MPU9250_ADDRESS, ACCEL_CONFIG, c); // Write new ACCEL_CONFIG register value
+
+	// Set accelerometer sample rate configuration
+	// It is possible to get a 4 kHz sample rate from the accelerometer by choosing 1 for
+	// accel_fchoice_b bit [3]; in this case the bandwidth is 1.13 kHz
+	c = readByte(MPU9250_ADDRESS, ACCEL_CONFIG2); // get current ACCEL_CONFIG2 register value
+	c = c & ~0x0F; // Clear accel_fchoice_b (bit 3) and A_DLPFG (bits [2:0])
+	// c = c | 0x03;  // Set accelerometer rate to 1 kHz and bandwidth to 41 Hz
+	c = c | 0x03;  // Set accelerometer rate to 1 kHz and bandwidth to 41 Hz, delay 11.8 ms
+	writeByte(MPU9250_ADDRESS, ACCEL_CONFIG2, c); // Write new ACCEL_CONFIG2 register value
+	// The accelerometer, gyro, and thermometer are set to 1 kHz sample rates,
+	// but all these rates are further reduced by a factor of 5 to 200 Hz because of the SMPLRT_DIV setting
+
+	// Configure Interrupts and Bypass Enable
+	// Set interrupt pin active high, push-pull, send 50 us interrupt pulses,
+	// clear on ANY read, and enable I2C_BYPASS_EN so additional chips
+	// can join the I2C bus and all can be controlled by the Arduino as master
+	//writeByte(MPU9250_ADDRESS, INT_PIN_CFG, 0x22);
+	writeByte(MPU9250_ADDRESS, INT_PIN_CFG, 0x12);
+	writeByte(MPU9250_ADDRESS, INT_ENABLE, 0x01);  // Enable data ready (bit 0) interrupt
+	nrf_delay_ms(100);
+}
+
+
+static int mpu9250_comp_check(void)
+{
+	int ret = -1;
+	uint8_t d = readByte(AK8963_ADDRESS, AK8963_WHO_AM_I);
+	if(d == 0x48) ret = 0;
+	
+	return ret;
+}
+
+static void mpu9250_comp_initialize(float *destination)
+{
+	mpu9250_config.m_scale = MFS_16BITS;	// Choose either 14-bit or 16-bit magnetometer resolution
+	mpu9250_config.m_mode = MODE_CONT1;	// CONT1 (2) for 8 Hz, CONT2 (6) for 100 Hz continuous magnetometer data read
+
+	/* !!! SET MAGNETOMETER BIAS VALUES !!! SHOULD BE CALCULATED AUTOMATICALLY !!! */
+	mpu9250_config.mag_bias[0] = 470.0;
+	mpu9250_config.mag_bias[1] = 120.0;
+	mpu9250_config.mag_bias[2] = 125.0;
+	/* !!! SET MAGNETOMETER BIAS VALUES !!! SHOULD BE CALCULATED AUTOMATICALLY !!! */
+
+	// First extract the factory calibration for each magnetometer axis
+	uint8_t data[3];  // x/y/z gyro calibration data stored here
+	writeByte(AK8963_ADDRESS, AK8963_CNTL, 0x00); // Power down magnetometer
+	nrf_delay_ms(10);
+	writeByte(AK8963_ADDRESS, AK8963_CNTL, 0x0F); // Enter Fuse ROM access mode
+	nrf_delay_ms(10);
+	readBytes(AK8963_ADDRESS, AK8963_ASAX, 3, data);  // Read the x-, y-, and z-axis calibration values
+	destination[0] =  (float)(data[0] - 128)/256. + 1.;   // Return x-axis sensitivity adjustment values, etc.
+	destination[1] =  (float)(data[1] - 128)/256. + 1.;
+	destination[2] =  (float)(data[2] - 128)/256. + 1.;
+	writeByte(AK8963_ADDRESS, AK8963_CNTL, 0x00); // Power down magnetometer
+	nrf_delay_ms(10);
+	// Configure the magnetometer for continuous read and highest resolution
+	// set Mscale bit 4 to 1 (0) to enable 16 (14) bit resolution in CNTL register,
+	// and enable continuous mode data acquisition Mmode (bits [3:0]), 0010 for 8 Hz and 0110 for 100 Hz sample rates
+	writeByte(AK8963_ADDRESS, AK8963_CNTL, mpu9250_config.m_scale << 4 | mpu9250_config.m_mode); // Set magnetometer data resolution and sample ODR
+	nrf_delay_ms(10);
 }
 
 /**@brief Function for application main entry.
@@ -1028,10 +1115,14 @@ int main(void)
 	spi_init();
 	twi_init();
 	
-	if(!mpu9250_check()){
+	if(!mpu9250_check()) {
 		SEGGER_RTT_printf(0, "mpu9250 is present\n");
 		mpu9250_calibrate(mpu9250_config.gyro_bias, mpu9250_config.accel_bias);
 		mpu9250_initialize();
+	}
+	if(!mpu9250_comp_check()) {
+		SEGGER_RTT_printf(0, "ak8963 is present\n");
+		mpu9250_comp_initialize(mpu9250_config.mag_calibration);
 	}
 	
 	ms58_reset();
