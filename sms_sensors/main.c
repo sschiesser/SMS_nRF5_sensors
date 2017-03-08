@@ -35,10 +35,10 @@
 #include "bsp.h"
 #include "nrf_drv_spi.h"
 #include "nrf_drv_gpiote.h"
+#include "nrf_drv_timer.h"
 #include "nrf_delay.h"
 #include "SEGGER_RTT.h"
 #include "ms58.h"
-//#include "mpu9250.h"
 #include "sms_imu.h"
 
 #define NRF_LOG_MODULE_NAME "APP"
@@ -96,7 +96,6 @@ static uint8_t							m_rx_buf[sizeof(SPI_MAX_LENGTH) + 1];		/**< RX buffer. */
 
 struct ms58_output_s					ms58_output;
 
-
 extern struct mpu9250_config_s mpu9250_config;
 extern struct mpu9250_output_s mpu9250_output;
 extern struct mpu9250_interrupt_s mpu9250_interrupt;
@@ -104,6 +103,9 @@ extern struct mpu9250_interrupt_s mpu9250_interrupt;
 APP_TIMER_DEF(pressure_poll_int_id);
 static volatile bool pressure_poll_int_done;
 
+#define TIMER_INSTANCE 1
+const nrf_drv_timer_t TIMER_DELTA_US = NRF_DRV_TIMER_INSTANCE(TIMER_INSTANCE);
+uint32_t old_cap = 0;
 
 /**@brief Function for assert macro callback.
  *
@@ -131,6 +133,12 @@ static void leds_init(void)
     bsp_board_leds_init();
 }
 
+static void timer_delta_us_handler(nrf_timer_event_t event_type, void * p_context)
+{
+	nrf_drv_timer_clear(&TIMER_DELTA_US);
+	bsp_board_led_invert(LEDBUTTON_LED_PIN);
+}
+
 
 /**@brief Function for the Timer initialization.
  *
@@ -138,8 +146,15 @@ static void leds_init(void)
  */
 static void timers_init(void)
 {
-    // Initialize timer module, making it use the scheduler
+    // Initialize application timer module, making it use the scheduler
     APP_TIMER_INIT(APP_TIMER_PRESCALER, APP_TIMER_OP_QUEUE_SIZE, false);
+	
+	// Initialize the timer driver to count microseconds
+	SEGGER_RTT_printf(0, "init timer...\n");
+	nrf_drv_timer_config_t timer_config = NRF_DRV_TIMER_DEFAULT_CONFIG;
+	timer_config.frequency = NRF_TIMER_FREQ_1MHz;
+	uint32_t err_code = nrf_drv_timer_init(&TIMER_DELTA_US, &timer_config, timer_delta_us_handler);
+	APP_ERROR_CHECK(err_code);
 }
 
 static void pressure_poll_int_handler(void * p_context)
@@ -814,13 +829,19 @@ int main(void)
 	
 	gpio_init();
 	
-	app_timer_start(pressure_poll_int_id, APP_TIMER_TICKS(400, 0), NULL);
+	app_timer_start(pressure_poll_int_id, APP_TIMER_TICKS(200, 0), NULL);
+	nrf_drv_timer_compare(&TIMER_DELTA_US, NRF_TIMER_CC_CHANNEL0, 1000000, true);
+	nrf_drv_timer_enable(&TIMER_DELTA_US);
 	
 	while(1)
 	{
 		if(pressure_poll_int_done) {
 			pressure_poll_int_done = false;
-			bsp_board_led_invert(LEDBUTTON_LED_PIN);
+//			bsp_board_led_invert(LEDBUTTON_LED_PIN);
+			uint32_t cap = nrf_drv_timer_capture(&TIMER_DELTA_US, NRF_TIMER_CC_CHANNEL0);
+			uint32_t delta = cap - old_cap;
+			old_cap = cap;
+			SEGGER_RTT_printf(0, "delta: %lu\n", delta);
 		}
 //		if(mpu9250_interrupt.new_gyro) {
 //			mpu9250_interrupt.new_gyro = false;
