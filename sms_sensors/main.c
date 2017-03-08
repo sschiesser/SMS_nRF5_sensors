@@ -102,10 +102,13 @@ extern struct mpu9250_interrupt_s mpu9250_interrupt;
 
 APP_TIMER_DEF(pressure_poll_int_id);
 static volatile bool pressure_poll_int_done;
+APP_TIMER_DEF(micros_cnt_id);
+static volatile uint32_t micros_cnt_overflow = 0;
 
 #define TIMER_INSTANCE 1
 const nrf_drv_timer_t TIMER_DELTA_US = NRF_DRV_TIMER_INSTANCE(TIMER_INSTANCE);
 uint32_t old_cap = 0;
+uint32_t old_cap1 = 0;
 
 /**@brief Function for assert macro callback.
  *
@@ -162,10 +165,18 @@ static void pressure_poll_int_handler(void * p_context)
 	pressure_poll_int_done = true;
 }
 
+static void micros_cnt_handler(void * p_context)
+{
+	micros_cnt_overflow++;
+}
+
 static void timer_create(void)
 {
 	uint32_t err_code;
 	err_code = app_timer_create(&pressure_poll_int_id, APP_TIMER_MODE_REPEATED, pressure_poll_int_handler);
+	APP_ERROR_CHECK(err_code);
+	
+	err_code = app_timer_create(&micros_cnt_id, APP_TIMER_MODE_REPEATED, micros_cnt_handler);
 	APP_ERROR_CHECK(err_code);
 }
 
@@ -829,7 +840,8 @@ int main(void)
 	
 	gpio_init();
 	
-	app_timer_start(pressure_poll_int_id, APP_TIMER_TICKS(200, 0), NULL);
+	app_timer_start(pressure_poll_int_id, APP_TIMER_TICKS(411, 0), NULL);
+	app_timer_start(micros_cnt_id, 0xffffffff, NULL);
 	nrf_drv_timer_compare(&TIMER_DELTA_US, NRF_TIMER_CC_CHANNEL0, 1000000, true);
 	nrf_drv_timer_enable(&TIMER_DELTA_US);
 	
@@ -837,7 +849,11 @@ int main(void)
 	{
 		if(pressure_poll_int_done) {
 			pressure_poll_int_done = false;
-//			bsp_board_led_invert(LEDBUTTON_LED_PIN);
+			uint32_t cap1 = app_timer_cnt_get();
+			uint32_t delta1 = (cap1 - old_cap1)/32;
+			old_cap1 = cap1;
+			SEGGER_RTT_printf(0, "delta: %lu  ", delta1);
+			bsp_board_led_invert(LEDBUTTON_LED_PIN);
 			uint32_t cap = nrf_drv_timer_capture(&TIMER_DELTA_US, NRF_TIMER_CC_CHANNEL0);
 			uint32_t delta = cap - old_cap;
 			old_cap = cap;
