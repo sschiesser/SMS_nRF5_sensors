@@ -8,7 +8,12 @@
 #include "nrf_delay.h"
 #include "nrf_drv_twi.h"
 #include "app_util_platform.h"
+#include "app_timer.h"
+#include "nrf_drv_timer.h"
+#include "SEGGER_RTT.h"
 #include "mpu9250.h"
+
+#define PI					(3.1415926535897932384626433832795)
 
 int mpu9250_check(void);
 void mpu9250_calibrate(float *dest1, float *dest2);
@@ -30,5 +35,8 @@ void twi_init(void);
 void writeByte(uint8_t address, uint8_t subAddress, uint8_t data);
 uint8_t readByte(uint8_t address, uint8_t subAddress);
 void readBytes(uint8_t address, uint8_t subAddress, uint8_t count, uint8_t *dest);
+
+void madgwick_quaternion_update(float ax, float ay, float az, float gx, float gy, float gz, float mx, float my, float mz, float deltat);
+void mahony_quaternion_update(float ax, float ay, float az, float gx, float gy, float gz, float mx, float my, float mz, float deltat);
 
 #endif

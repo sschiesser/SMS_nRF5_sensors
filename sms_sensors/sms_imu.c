@@ -1,5 +1,4 @@
 #include "sms_imu.h"
-#include "mpu9250.h"
 
 #define TWI_INSTANCE 1
 const nrf_drv_twi_t twi_master_instance = NRF_DRV_TWI_INSTANCE(TWI_INSTANCE);
@@ -9,6 +8,7 @@ struct mpu9250_config_s mpu9250_config;
 struct mpu9250_output_s mpu9250_output;
 struct mpu9250_interrupt_s mpu9250_interrupt;
 
+extern const nrf_drv_timer_t TIMER_DELTA_US;
 
 void twi_event_handler(nrf_drv_twi_evt_t const * p_event, void * p_context)
 {
@@ -39,6 +39,10 @@ void mpu9250_calibrate(float *dest1, float *dest2)
 	uint16_t ii, packet_count, fifo_count;
 	int32_t gyro_bias[3]  = {0, 0, 0};
 	int32_t accel_bias[3] = {0, 0, 0};
+	mpu9250_output.q[0] = 1.;
+	mpu9250_output.q[1] = 0.;
+	mpu9250_output.q[2] = 0.;
+	mpu9250_output.q[3] = 0.;
 	
 	// reset device
 	writeByte(MPU9250_ADDRESS, PWR_MGMT_1, 0x80); // Write a one to bit 7 reset bit; toggle reset device
@@ -187,6 +191,9 @@ void mpu9250_calibrate(float *dest1, float *dest2)
 
 void mpu9250_initialize(void)
 {
+	mpu9250_config.a_scale = AFS_2G;
+	mpu9250_config.g_scale = GFS_250DPS;
+	
 	// wake up device
 	writeByte(MPU9250_ADDRESS, PWR_MGMT_1, 0x00); // Clear sleep mode bit (6), enable all sensors
 	nrf_delay_ms(100); // Wait for all registers to reset
@@ -309,14 +316,22 @@ int mpu9250_poll_data(void)
 	float my = ( ((float)mpu9250_output.raw_compass[1]) * m_res * mpu9250_config.mag_calibration[1] ) - mpu9250_config.mag_bias[1];
 	float mz = ( ((float)mpu9250_output.raw_compass[2]) * m_res * mpu9250_config.mag_calibration[2] ) - mpu9250_config.mag_bias[2];
 	
-//	static uint32_t last_time = 0;
-//	const uint32_t cnt_max = 0xffffffff/SMS_DUALTIMER_LOAD_US;
-//	uint32_t now = (uint32_t)(dualtimer_get_value(timer1_instance.id)/SMS_DUALTIMER_LOAD_US);
-//	uint32_t deltati = ((now < last_time) ? (last_time - now) : (cnt_max - now + last_time));
-//	last_time = now;
-//	float deltatf = (float)deltati / 1000000.0;
-//	mahony_quaternion_update(ax, ay, az, gx*PI/180.0, gy*PI/180.0, gz*PI/180.0, my, mx, mz, deltatf);
-//	//madgwick_quaternion_update(ax, ay, az, gx*PI/180.0, gy*PI/180.0, gz*PI/180.0, my, mx, mz, deltatf);
+	// Chose (once) between unprecise but low-power ms app timer
+	// and precise current-demanding us drv timer 
+	static uint32_t last_time_ms = 0;
+	uint32_t now_ms = app_timer_cnt_get();
+	uint32_t delta_ms = (now_ms - last_time_ms)/33;
+	last_time_ms = now_ms;
+	static uint32_t last_time_us = 0;
+	uint32_t now_us = nrf_drv_timer_capture(&TIMER_DELTA_US, NRF_TIMER_CC_CHANNEL0);
+	uint32_t delta_us = now_us - last_time_us;
+	last_time_us = now_us;
+	
+	// Currently using us timer
+	float deltat = (float)delta_us/1000000.;
+	
+	mahony_quaternion_update(ax, ay, az, gx*PI/180.0, gy*PI/180.0, gz*PI/180.0, my, mx, mz, deltat);
+	//madgwick_quaternion_update(ax, ay, az, gx*PI/180.0, gy*PI/180.0, gz*PI/180.0, my, mx, mz, deltat);
 //	
 //	if(imu_device.config.ahrs) {
 //		ahrs_calculation(imu_device.output.q);

@@ -849,32 +849,30 @@ int main(void)
 	{
 		if(pressure_poll_int_done) {
 			pressure_poll_int_done = false;
-			uint32_t cap1 = app_timer_cnt_get();
-			uint32_t delta1 = (cap1 - old_cap1)/32;
-			old_cap1 = cap1;
-			SEGGER_RTT_printf(0, "delta: %lu  ", delta1);
-			bsp_board_led_invert(LEDBUTTON_LED_PIN);
-			uint32_t cap = nrf_drv_timer_capture(&TIMER_DELTA_US, NRF_TIMER_CC_CHANNEL0);
-			uint32_t delta = cap - old_cap;
-			old_cap = cap;
-			SEGGER_RTT_printf(0, "delta: %lu\n", delta);
+			ms58_read_data();
+			if(ms58_output.complete) {
+				ms58_calculate();
+	//			SEGGER_RTT_printf(0, "Pressure: %ld, Temperature: %ld\n", ms58_output.pressure, ms58_output.temperature);
+				ms58_output.complete = false;
+			}
+			else {
+				ms58_output.complete = true;
+			}
 		}
-//		if(mpu9250_interrupt.new_gyro) {
-//			mpu9250_interrupt.new_gyro = false;
-//			mpu9250_poll_data();
-//		}
+		
+		if(mpu9250_interrupt.new_gyro) {
+			mpu9250_interrupt.new_gyro = false;
+			mpu9250_poll_data();
+			bsp_board_led_invert(LEDBUTTON_LED_PIN);
+			uint32_t q1 = mpu9250_output.q[0] * 1000000;
+			uint32_t q2 = mpu9250_output.q[1] * 1000000;
+			uint32_t q3 = mpu9250_output.q[2] * 1000000;
+			uint32_t q4 = mpu9250_output.q[3] * 1000000;
+			SEGGER_RTT_printf(0, "q1 %ld, q2 %ld, q3 %ld, q4 %ld\n", q1, q2, q3, q4);
+		}
 //		nrf_delay_ms(100);
 //		bsp_board_led_on(LEDBUTTON_LED_PIN);
 //		
-//		ms58_read_data();
-//		if(ms58_output.complete) {
-//			ms58_calculate();
-////			SEGGER_RTT_printf(0, "Pressure: %ld, Temperature: %ld\n", ms58_output.pressure, ms58_output.temperature);
-//			ms58_output.complete = false;
-//		}
-//		else {
-//			ms58_output.complete = true;
-//		}
 //		
 //		nrf_delay_ms(50);
 //		bsp_board_led_off(LEDBUTTON_LED_PIN);
