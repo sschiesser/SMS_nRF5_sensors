@@ -2,8 +2,8 @@
 #include "mpu9250.h"
 
 #define TWI_INSTANCE 1
-static const nrf_drv_twi_t twi_master_instance = NRF_DRV_TWI_INSTANCE(TWI_INSTANCE);
-static volatile bool twi_xfer_done;
+const nrf_drv_twi_t twi_master_instance = NRF_DRV_TWI_INSTANCE(TWI_INSTANCE);
+volatile bool twi_xfer_done;
 
 struct mpu9250_config_s mpu9250_config;
 struct mpu9250_output_s mpu9250_output;

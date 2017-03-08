@@ -101,8 +101,8 @@ extern struct mpu9250_config_s mpu9250_config;
 extern struct mpu9250_output_s mpu9250_output;
 extern struct mpu9250_interrupt_s mpu9250_interrupt;
 
-APP_TIMER_DEF(periph_init_timer_id);
-static volatile bool periph_init_timer_done;
+APP_TIMER_DEF(pressure_poll_int_id);
+static volatile bool pressure_poll_int_done;
 
 
 /**@brief Function for assert macro callback.
@@ -142,16 +142,15 @@ static void timers_init(void)
     APP_TIMER_INIT(APP_TIMER_PRESCALER, APP_TIMER_OP_QUEUE_SIZE, false);
 }
 
-static void periph_init_timer_handler(void * p_context)
+static void pressure_poll_int_handler(void * p_context)
 {
-	periph_init_timer_done = true;
-	NRF_LOG_INFO("Timer handled!\n\r");
+	pressure_poll_int_done = true;
 }
 
 static void timer_create(void)
 {
 	uint32_t err_code;
-	err_code = app_timer_create(&periph_init_timer_id, APP_TIMER_MODE_SINGLE_SHOT, periph_init_timer_handler);
+	err_code = app_timer_create(&pressure_poll_int_id, APP_TIMER_MODE_REPEATED, pressure_poll_int_handler);
 	APP_ERROR_CHECK(err_code);
 }
 
@@ -563,7 +562,7 @@ void spi_event_handler(nrf_drv_spi_evt_t const * p_event)
 void pin_change_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
 	mpu9250_interrupt.new_gyro = true;
-	bsp_board_led_invert(LEDBUTTON_LED_PIN);
+//	bsp_board_led_invert(LEDBUTTON_LED_PIN);
 }
 
 
@@ -815,12 +814,18 @@ int main(void)
 	
 	gpio_init();
 	
+	app_timer_start(pressure_poll_int_id, APP_TIMER_TICKS(400, 0), NULL);
+	
 	while(1)
 	{
-		if(mpu9250_interrupt.new_gyro) {
-			mpu9250_interrupt.new_gyro = false;
-			mpu9250_poll_data();
+		if(pressure_poll_int_done) {
+			pressure_poll_int_done = false;
+			bsp_board_led_invert(LEDBUTTON_LED_PIN);
 		}
+//		if(mpu9250_interrupt.new_gyro) {
+//			mpu9250_interrupt.new_gyro = false;
+//			mpu9250_poll_data();
+//		}
 //		nrf_delay_ms(100);
 //		bsp_board_led_on(LEDBUTTON_LED_PIN);
 //		
