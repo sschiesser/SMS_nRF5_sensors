@@ -17,20 +17,20 @@
 
 int bno055_check(void);
 int bno055_test(void);
-void bno055_calibrate(float *dest1, float *dest2);
-//void mpu9250_calibrate(float *dest1, float *dest2);
-//void mpu9250_initialize(void);
-//int mpu9250_comp_check(void);
-//void mpu9250_comp_initialize(float *destination);
-//int mpu9250_poll_data(void);
+void bno055_init_config_values(void);
+void bno055_calibrate_accel_gyro(float *dest1, float *dest2);
+void bno055_calibrate_mag(float *dest);
+void bno055_initialize(void);
+void bno055_poll_data(void);
 
-//void read_accel_data(int16_t *destination);
-//void read_gyro_data(int16_t *destination);
-//void read_comp_data(int16_t *destination);
-//int16_t read_temp_data(void);
-//float get_Mres(uint8_t m_scale);
-//float get_Gres(uint8_t g_scale);
-//float get_Ares(uint8_t a_scale);
+void read_accel_data(int16_t *destination);
+void read_gyro_data(int16_t *destination);
+int16_t read_gyrotemp_data(void);
+void read_mag_data(int16_t *destination);
+void read_quat_data(int16_t * destination);
+void read_euler_data(int16_t * destination);
+void read_lia_data(int16_t * destination);
+void read_grv_data(int16_t * destination);
 
 void twi_event_handler(nrf_drv_twi_evt_t const * p_event, void * p_context);
 void twi_init(void);

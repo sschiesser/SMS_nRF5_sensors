@@ -835,9 +835,23 @@ int main(void)
 		nrf_delay_ms(1000);
 		bno055_test();
 		nrf_delay_ms(1000);
-		bno055_calibrate(bno055_config.accel_bias, bno055_config.gyro_bias);
-//		mpu9250_calibrate(mpu9250_config.gyro_bias, mpu9250_config.accel_bias);
-//		mpu9250_initialize();
+		bno055_init_config_values();
+//		bno055_calibrate_accel_gyro(bno055_config.accel_bias, bno055_config.gyro_bias);
+//		nrf_delay_ms(1000);
+//		bno055_calibrate_mag(bno055_config.mag_bias);
+//		nrf_delay_ms(1000);
+		
+		// Check calibration status of the sensors
+		uint8_t calstat = readByte(BNO055_ADDRESS, BNO055_CALIB_STAT);
+		SEGGER_RTT_printf(0, "Not calibrated = 0, fully calibrated = 3\n");
+		SEGGER_RTT_printf(0, "System calibration status: %d\n", ((0xC0 & calstat) >> 6));
+		SEGGER_RTT_printf(0, "Gyro   calibration status: %d\n", ((0x30 & calstat) >> 4));
+		SEGGER_RTT_printf(0, "Accel  calibration status: %d\n", ((0x0C & calstat) >> 2));
+		SEGGER_RTT_printf(0, "Mag    calibration status: %d\n", ((0x03 & calstat) >> 0));
+
+		// Initialize bno055
+		bno055_initialize();
+		SEGGER_RTT_printf(0, "BNO055 initialized for sensor mode....");
 	}
 	else {
 		if((ret & 0x08) == 0x08) {
@@ -869,18 +883,18 @@ int main(void)
 	
 	while(1)
 	{
-		if(pressure_poll_int_done) {
-			pressure_poll_int_done = false;
-			ms58_read_data();
-			if(ms58_output.complete) {
-				ms58_calculate();
-				SEGGER_RTT_printf(0, "Pressure: %ld, Temperature: %ld\n", ms58_output.pressure, ms58_output.temperature);
-				ms58_output.complete = false;
-			}
-			else {
-				ms58_output.complete = true;
-			}
-		}
+//		if(pressure_poll_int_done) {
+//			pressure_poll_int_done = false;
+//			ms58_read_data();
+//			if(ms58_output.complete) {
+//				ms58_calculate();
+//				SEGGER_RTT_printf(0, "Pressure: %ld, Temperature: %ld\n", ms58_output.pressure, ms58_output.temperature);
+//				ms58_output.complete = false;
+//			}
+//			else {
+//				ms58_output.complete = true;
+//			}
+//		}
 		
 //		if(mpu9250_interrupt.new_gyro) {
 //			mpu9250_interrupt.new_gyro = false;
@@ -892,6 +906,10 @@ int main(void)
 //			uint32_t q4 = mpu9250_output.q[3] * 1000000;
 //			SEGGER_RTT_printf(0, "q1 %ld, q2 %ld, q3 %ld, q4 %ld\n", q1, q2, q3, q4);
 //		}
+
+		bno055_poll_data();
+		bsp_board_led_invert(LEDBUTTON_LED_PIN);
+		nrf_delay_ms(10);
 //		nrf_delay_ms(100);
 //		bsp_board_led_on(LEDBUTTON_LED_PIN);
 //		

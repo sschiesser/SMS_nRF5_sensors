@@ -257,19 +257,33 @@ struct bno055_config_s {
 	//	float self_test[6];
 	float gyro_bias[3];
 	float accel_bias[3];
-	//	float mag_bias[3];
+	float mag_bias[3];
 	//	float mag_calibration[3];
 	//	bool ahrs;
 };
 struct bno055_output_s {
-	//	int16_t raw_gyro[3];
-	//	int16_t raw_accel[3];
-	//	int16_t raw_compass[3];
-	//	int16_t raw_temp;
-	float q[4];
+	// The float variables for internal processing
+	float accel[3];
+	float gyro[3];
+	float mag[3];
+	float temp;
+	float quat[4];
 	float yaw;
 	float pitch;
 	float roll;
+	float lia[3];
+	float grv[3];
+	// The "sliced" 8-bit integers for serial transmision
+	uint8_t accel_i[3][4];
+	uint8_t gyro_i[3][4];
+	uint8_t mag_i[3][4];
+	uint8_t temp_i[4];
+	uint8_t quat_i[4][4];
+	uint8_t yaw_i[4];
+	uint8_t roll_i[4];
+	uint8_t pitch_i[4];
+	uint8_t lia_i[3][4];
+	uint8_t grv_i[3][4]
 };
 struct bno055_interrupt_s {
 	bool enabled;
