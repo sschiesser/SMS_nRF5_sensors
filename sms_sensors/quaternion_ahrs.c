@@ -124,10 +124,10 @@ void madgwick_quaternion_update(float ax, float ay, float az, float gx, float gy
 	q4 += qDot4 * deltat;
 	norm = sqrtf(q1 * q1 + q2 * q2 + q3 * q3 + q4 * q4);    // normalize quaternion
 	norm = 1.0f/norm;
-	mpu9250_output.q[0] = q1 * norm;
-	mpu9250_output.q[1] = q2 * norm;
-	mpu9250_output.q[2] = q3 * norm;
-	mpu9250_output.q[3] = q4 * norm;
+//	mpu9250_output.q[0] = q1 * norm;
+//	mpu9250_output.q[1] = q2 * norm;
+//	mpu9250_output.q[2] = q3 * norm;
+//	mpu9250_output.q[3] = q4 * norm;
 }
 
 
@@ -136,10 +136,14 @@ void madgwick_quaternion_update(float ax, float ay, float az, float gx, float gy
 // measured ones.
 void mahony_quaternion_update(float ax, float ay, float az, float gx, float gy, float gz, float mx, float my, float mz, float deltat)
 {
-	float q1 = mpu9250_output.q[0];   // short name local variable for readability
-	float q2 = mpu9250_output.q[1];
-	float q3 = mpu9250_output.q[2];
-	float q4 = mpu9250_output.q[3];
+//	float q1 = mpu9250_output.q[0];   // short name local variable for readability
+//	float q2 = mpu9250_output.q[1];
+//	float q3 = mpu9250_output.q[2];
+//	float q4 = mpu9250_output.q[3];
+	static float q1 = 1.0;
+	static float q2 = 0.0;
+	static float q3 = 0.0;
+	static float q4 = 0.0;
 	float norm;
 	float hx, hy, bx, bz;
 	float vx, vy, vz, wx, wy, wz;
@@ -223,10 +227,10 @@ void mahony_quaternion_update(float ax, float ay, float az, float gx, float gy, 
 	// Normalize quaternion
 	norm = sqrtf(q1 * q1 + q2 * q2 + q3 * q3 + q4 * q4);
 	norm = 1.0f / norm;
-	mpu9250_output.q[0] = q1 * norm;
-	mpu9250_output.q[1] = q2 * norm;
-	mpu9250_output.q[2] = q3 * norm;
-	mpu9250_output.q[3] = q4 * norm;
+//	mpu9250_output.q[0] = q1 * norm;
+//	mpu9250_output.q[1] = q2 * norm;
+//	mpu9250_output.q[2] = q3 * norm;
+//	mpu9250_output.q[3] = q4 * norm;
 }
 
 

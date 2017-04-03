@@ -96,9 +96,9 @@ static uint8_t							m_rx_buf[sizeof(SPI_MAX_LENGTH) + 1];		/**< RX buffer. */
 
 struct ms58_output_s					ms58_output;
 
-extern struct mpu9250_config_s mpu9250_config;
-extern struct mpu9250_output_s mpu9250_output;
-extern struct mpu9250_interrupt_s mpu9250_interrupt;
+extern struct bno055_config_s bno055_config;
+extern struct bno055_output_s bno055_output;
+extern struct bno055_interrupt_s bno055_interrupt;
 
 APP_TIMER_DEF(pressure_poll_int_id);
 static volatile bool pressure_poll_int_done;
@@ -587,7 +587,7 @@ void spi_event_handler(nrf_drv_spi_evt_t const * p_event)
 
 void pin_change_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
-	mpu9250_interrupt.new_gyro = true;
+	bno055_interrupt.new_value = true;
 //	bsp_board_led_invert(LEDBUTTON_LED_PIN);
 }
 
@@ -601,7 +601,7 @@ static void gpio_init(void)
 	err_code = nrf_drv_gpiote_in_init(DRDY_INT_PIN, &in_config, pin_change_handler);
 	APP_ERROR_CHECK(err_code);
 	
-	mpu9250_interrupt.new_gyro = false;
+	bno055_interrupt.new_value = false;
 	nrf_drv_gpiote_in_event_enable(DRDY_INT_PIN, true);
 }
 
@@ -828,15 +828,37 @@ int main(void)
 	ms58_output.complete = false;
 
 	twi_init();
-	if(!mpu9250_check()) {
-		SEGGER_RTT_printf(0, "mpu9250 is present\n");
-		mpu9250_calibrate(mpu9250_config.gyro_bias, mpu9250_config.accel_bias);
-		mpu9250_initialize();
+	int ret = bno055_check();
+	if(!ret)
+	{
+		SEGGER_RTT_printf(0, "Whole BNO055 device is present\n");
+		nrf_delay_ms(1000);
+		bno055_test();
+		nrf_delay_ms(1000);
+		bno055_calibrate(bno055_config.accel_bias, bno055_config.gyro_bias);
+//		mpu9250_calibrate(mpu9250_config.gyro_bias, mpu9250_config.accel_bias);
+//		mpu9250_initialize();
 	}
-	if(!mpu9250_comp_check()) {
-		SEGGER_RTT_printf(0, "ak8963 is present\n");
-		mpu9250_comp_initialize(mpu9250_config.mag_calibration);
+	else {
+		if((ret & 0x08) == 0x08) {
+			SEGGER_RTT_printf(0, "NO DEVICE AT ALL!!\n");
+		}
+		else {
+			if((ret & 0x04) == 0x04) {
+				SEGGER_RTT_printf(0, "No accelerometer\n");
+			}
+			if((ret & 0x02) == 0x02) {
+				SEGGER_RTT_printf(0, "No magnetometer\n");
+			}
+			if((ret & 0x01) == 0x01) {
+				SEGGER_RTT_printf(0, "No gyroscope\n");
+			}
+		}
 	}
+//	if(!mpu9250_comp_check()) {
+//		SEGGER_RTT_printf(0, "ak8963 is present\n");
+//		mpu9250_comp_initialize(mpu9250_config.mag_calibration);
+//	}
 	
 	gpio_init();
 	
@@ -852,7 +874,7 @@ int main(void)
 			ms58_read_data();
 			if(ms58_output.complete) {
 				ms58_calculate();
-	//			SEGGER_RTT_printf(0, "Pressure: %ld, Temperature: %ld\n", ms58_output.pressure, ms58_output.temperature);
+				SEGGER_RTT_printf(0, "Pressure: %ld, Temperature: %ld\n", ms58_output.pressure, ms58_output.temperature);
 				ms58_output.complete = false;
 			}
 			else {
@@ -860,16 +882,16 @@ int main(void)
 			}
 		}
 		
-		if(mpu9250_interrupt.new_gyro) {
-			mpu9250_interrupt.new_gyro = false;
-			mpu9250_poll_data();
-			bsp_board_led_invert(LEDBUTTON_LED_PIN);
-			uint32_t q1 = mpu9250_output.q[0] * 1000000;
-			uint32_t q2 = mpu9250_output.q[1] * 1000000;
-			uint32_t q3 = mpu9250_output.q[2] * 1000000;
-			uint32_t q4 = mpu9250_output.q[3] * 1000000;
-			SEGGER_RTT_printf(0, "q1 %ld, q2 %ld, q3 %ld, q4 %ld\n", q1, q2, q3, q4);
-		}
+//		if(mpu9250_interrupt.new_gyro) {
+//			mpu9250_interrupt.new_gyro = false;
+//			mpu9250_poll_data();
+//			bsp_board_led_invert(LEDBUTTON_LED_PIN);
+//			uint32_t q1 = mpu9250_output.q[0] * 1000000;
+//			uint32_t q2 = mpu9250_output.q[1] * 1000000;
+//			uint32_t q3 = mpu9250_output.q[2] * 1000000;
+//			uint32_t q4 = mpu9250_output.q[3] * 1000000;
+//			SEGGER_RTT_printf(0, "q1 %ld, q2 %ld, q3 %ld, q4 %ld\n", q1, q2, q3, q4);
+//		}
 //		nrf_delay_ms(100);
 //		bsp_board_led_on(LEDBUTTON_LED_PIN);
 //		
