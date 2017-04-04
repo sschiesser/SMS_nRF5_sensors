@@ -883,53 +883,36 @@ int main(void)
 	
 	gpio_init();
 	
-	app_timer_start(pressure_poll_int_id, APP_TIMER_TICKS(411, 0), NULL);
-	app_timer_start(imu_poll_int_id, APP_TIMER_TICKS(MSEC_TO_UNITS(100, UNIT_1_00_MS),0), NULL);
+	app_timer_start(pressure_poll_int_id, APP_TIMER_TICKS(MSEC_TO_UNITS(67, UNIT_1_00_MS),0), NULL);
+	app_timer_start(imu_poll_int_id, APP_TIMER_TICKS(MSEC_TO_UNITS(71, UNIT_1_00_MS),0), NULL);
 	app_timer_start(micros_cnt_id, 0xffffffff, NULL);
 	nrf_drv_timer_compare(&TIMER_DELTA_US, NRF_TIMER_CC_CHANNEL0, 1000000, true);
 	nrf_drv_timer_enable(&TIMER_DELTA_US);
 	
-	while(1)
-	{
+//	while(1)
+//	{
 //		if(pressure_poll_int_done) {
 //			pressure_poll_int_done = false;
 //			ms58_read_data();
 //			if(ms58_output.complete) {
 //				ms58_calculate();
-//				SEGGER_RTT_printf(0, "Pressure: %ld, Temperature: %ld\n", ms58_output.pressure, ms58_output.temperature);
+////				SEGGER_RTT_printf(0, "Pressure: %ld, Temperature: %ld\n", ms58_output.pressure, ms58_output.temperature);
 //				ms58_output.complete = false;
 //			}
 //			else {
 //				ms58_output.complete = true;
 //			}
 //		}
-		
-		if(bno055_interrupt.new_int) {
-//			SEGGER_RTT_printf(0, "BNO055 interrupt!\n");
-			bno055_interrupt.new_int = false;
-			bno055_poll_data();
-			bno055_int_reset();
-		}
-//		if(mpu9250_interrupt.new_gyro) {
-//			mpu9250_interrupt.new_gyro = false;
-//			mpu9250_poll_data();
-//			bsp_board_led_invert(LEDBUTTON_LED_PIN);
-//			uint32_t q1 = mpu9250_output.q[0] * 1000000;
-//			uint32_t q2 = mpu9250_output.q[1] * 1000000;
-//			uint32_t q3 = mpu9250_output.q[2] * 1000000;
-//			uint32_t q4 = mpu9250_output.q[3] * 1000000;
-//			SEGGER_RTT_printf(0, "q1 %ld, q2 %ld, q3 %ld, q4 %ld\n", q1, q2, q3, q4);
+//		
+//		if(bno055_interrupt.new_int) {
+////			SEGGER_RTT_printf(0, "BNO055 interrupt!\n");
+//			bno055_interrupt.new_int = false;
+//			bno055_poll_data();
+//			bno055_int_reset();
 //		}
 
-		bsp_board_led_invert(LEDBUTTON_LED_PIN);
-//		nrf_delay_ms(10);
-//		nrf_delay_ms(100);
-//		bsp_board_led_on(LEDBUTTON_LED_PIN);
-//		
-//		
-//		nrf_delay_ms(50);
-//		bsp_board_led_off(LEDBUTTON_LED_PIN);
-	}
+//		bsp_board_led_invert(LEDBUTTON_LED_PIN);
+//	}
 
     // Start execution.
     NRF_LOG_INFO("Blinky Start!\r\n");
@@ -942,6 +925,26 @@ int main(void)
         {
             power_manage();
         }
+		
+		if(pressure_poll_int_done) {
+			pressure_poll_int_done = false;
+			ms58_read_data();
+			if(ms58_output.complete) {
+				ms58_calculate();
+//				SEGGER_RTT_printf(0, "Pressure: %ld, Temperature: %ld\n", ms58_output.pressure, ms58_output.temperature);
+				ms58_output.complete = false;
+			}
+			else {
+				ms58_output.complete = true;
+			}
+		}
+		
+		if(bno055_interrupt.new_int) {
+//			SEGGER_RTT_printf(0, "BNO055 interrupt!\n");
+			bno055_interrupt.new_int = false;
+			bno055_poll_data();
+			bno055_int_reset();
+		}
     }
 }
 
