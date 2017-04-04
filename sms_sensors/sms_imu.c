@@ -291,18 +291,18 @@ void bno055_initialize(void)
 	// Configure MAG
 	writeByte(BNO055_ADDRESS, BNO055_MAG_CONFIG, bno055_config.m_pwr_mode << 5 | bno055_config.m_op_mode << 3 | bno055_config.m_odr);
 
-	// Configure interrupt settings...
-	// Accelerometer any motion interrupt (4:2)
-	writeByte(BNO055_ADDRESS, BNO055_ACC_INT_SETTINGS, 0x1C);
-	writeByte(BNO055_ADDRESS, BNO055_ACC_AM_THRES, 0x00);
-	// Gyroscope any motion interrupt (
-	writeByte(BNO055_ADDRESS, BNO055_GYR_INT_SETTINGS, 0x47);
-	writeByte(BNO055_ADDRESS, BNO055_GYR_AM_THRESH, 0x00);
-	writeByte(BNO055_ADDRESS, BNO055_GYR_AM_SET, 0x00);
-	// Set interrupt mask (6 -> ACC_AM, 2 -> GYR_AM)
-	writeByte(BNO055_ADDRESS, BNO055_INT_MSK, 0x44);
-	// Enable interrupt
-	writeByte(BNO055_ADDRESS, BNO055_INT_EN, 0x44);
+//	// Configure interrupt settings...
+//	// Accelerometer any motion interrupt (4:2)
+//	writeByte(BNO055_ADDRESS, BNO055_ACC_INT_SETTINGS, 0x1C);
+//	writeByte(BNO055_ADDRESS, BNO055_ACC_AM_THRES, 0x00);
+//	// Gyroscope any motion interrupt (
+//	writeByte(BNO055_ADDRESS, BNO055_GYR_INT_SETTINGS, 0x47);
+//	writeByte(BNO055_ADDRESS, BNO055_GYR_AM_THRESH, 0x00);
+//	writeByte(BNO055_ADDRESS, BNO055_GYR_AM_SET, 0x00);
+//	// Set interrupt mask (6 -> ACC_AM, 2 -> GYR_AM)
+//	writeByte(BNO055_ADDRESS, BNO055_INT_MSK, 0x44);
+//	// Enable interrupt
+//	writeByte(BNO055_ADDRESS, BNO055_INT_EN, 0x44);
 	
 	// Select page 0 to read sensors
 	writeByte(BNO055_ADDRESS, BNO055_PAGE_ID, 0x00);

@@ -102,6 +102,7 @@ extern struct bno055_interrupt_s bno055_interrupt;
 
 APP_TIMER_DEF(pressure_poll_int_id);
 static volatile bool pressure_poll_int_done;
+APP_TIMER_DEF(imu_poll_int_id);
 APP_TIMER_DEF(micros_cnt_id);
 static volatile uint32_t micros_cnt_overflow = 0;
 
@@ -165,6 +166,11 @@ static void pressure_poll_int_handler(void * p_context)
 	pressure_poll_int_done = true;
 }
 
+static void imu_poll_int_handler(void * p_context)
+{
+	bno055_interrupt.new_int = true;
+}
+
 static void micros_cnt_handler(void * p_context)
 {
 	micros_cnt_overflow++;
@@ -174,6 +180,9 @@ static void timer_create(void)
 {
 	uint32_t err_code;
 	err_code = app_timer_create(&pressure_poll_int_id, APP_TIMER_MODE_REPEATED, pressure_poll_int_handler);
+	APP_ERROR_CHECK(err_code);
+
+	err_code = app_timer_create(&imu_poll_int_id, APP_TIMER_MODE_REPEATED, imu_poll_int_handler);
 	APP_ERROR_CHECK(err_code);
 	
 	err_code = app_timer_create(&micros_cnt_id, APP_TIMER_MODE_REPEATED, micros_cnt_handler);
@@ -871,14 +880,11 @@ int main(void)
 			}
 		}
 	}
-//	if(!mpu9250_comp_check()) {
-//		SEGGER_RTT_printf(0, "ak8963 is present\n");
-//		mpu9250_comp_initialize(mpu9250_config.mag_calibration);
-//	}
 	
 	gpio_init();
 	
 	app_timer_start(pressure_poll_int_id, APP_TIMER_TICKS(411, 0), NULL);
+	app_timer_start(imu_poll_int_id, APP_TIMER_TICKS(MSEC_TO_UNITS(100, UNIT_1_00_MS),0), NULL);
 	app_timer_start(micros_cnt_id, 0xffffffff, NULL);
 	nrf_drv_timer_compare(&TIMER_DELTA_US, NRF_TIMER_CC_CHANNEL0, 1000000, true);
 	nrf_drv_timer_enable(&TIMER_DELTA_US);
