@@ -313,19 +313,29 @@ void bno055_poll_data(void)
 	float q[4];
 	float yaw, pitch, roll;
 	float lia[3], grv[3];
+	uint8_t i;
 	
     read_accel_data(data3);  // Read the x/y/z adc values
     // Now we'll calculate the accleration value into actual mg's
     ax = (float)data3[0]; // - accelBias[0];  // subtract off calculated accel bias
     ay = (float)data3[1]; // - accelBias[1];
-    az = (float)data3[2]; // - accelBias[2]; 
-//	SEGGER_RTT_printf(0, "Raw acceleration: %ld, %ld, %ld\n", (int32_t)(ax*10000.), (int32_t)(ay*10000.), (int32_t)(az*10000.));
-
+    az = (float)data3[2]; // - accelBias[2];
+	// Fill the sensor output table for later sending
+	bno055_output.accel[0].val = ax;
+	bno055_output.accel[1].val = ay;
+	bno055_output.accel[2].val = az;
+//	SEGGER_RTT_printf(0, "Raw acceleration: %x, %x, %x\n", (int32_t)(ax*10000.), (int32_t)(ay*10000.), (int32_t)(az*10000.));
+	
+	
     read_gyro_data(data3);  // Read the x/y/z adc values
     // Calculate the gyro value into actual degrees per second
     gx = (float)data3[0]/16.; // - gyroBias[0];  // subtract off calculated gyro bias
     gy = (float)data3[1]/16.; // - gyroBias[1];  
-    gz = (float)data3[2]/16.; // - gyroBias[2];   
+    gz = (float)data3[2]/16.; // - gyroBias[2];  
+	// Fill the sensor output table for later sending
+	bno055_output.gyro[0].val = gx;
+	bno055_output.gyro[1].val = gy;
+	bno055_output.gyro[2].val = gz;
 //	SEGGER_RTT_printf(0, "Raw gyroscope   : %ld, %ld, %ld\n", (int32_t)(gx*10000.), (int32_t)(gy*10000.), (int32_t)(gz*10000.));
 
     read_mag_data(data3);  // Read the x/y/z adc values   
@@ -333,6 +343,10 @@ void bno055_poll_data(void)
     mx = (float)data3[0]/1.6; // - magBias[0];  // get actual magnetometer value in mGauss 
     my = (float)data3[1]/1.6; // - magBias[1];  
     mz = (float)data3[2]/1.6; // - magBias[2];   
+	// Fill the sensor output table for later sending
+	bno055_output.mag[0].val = mx;
+	bno055_output.mag[1].val = my;
+	bno055_output.mag[2].val = mz;
 //	SEGGER_RTT_printf(0, "Raw magnetometer: %ld, %ld, %ld\n", (int32_t)(mx*10000.), (int32_t)(my*10000.), (int32_t)(mz*10000.));
     
     read_quat_data(data4);  // Read the x/y/z adc values   
@@ -341,6 +355,11 @@ void bno055_poll_data(void)
     q[1] = (float)(data4[1])/16384.;  
     q[2] = (float)(data4[2])/16384.;   
     q[3] = (float)(data4[3])/16384.;   
+	// Fill the sensor output table for later sending
+	bno055_output.quat[0].val = q[0];
+	bno055_output.quat[1].val = q[1];
+	bno055_output.quat[2].val = q[2];
+	bno055_output.quat[3].val = q[3];
 // 	SEGGER_RTT_printf(0, "Raw quaternions : %ld, %ld, %ld, %ld\n", (int32_t)(q[0]*10000.), (int32_t)(q[1]*10000.), (int32_t)(q[2]*10000.), (int32_t)(q[3]*10000.));
    
     read_euler_data(data3);  // Read the x/y/z adc values   
@@ -348,6 +367,10 @@ void bno055_poll_data(void)
     yaw = (float)data3[0]/16.;  
     roll = (float)data3[1]/16.;  
     pitch = (float)data3[2]/16.;   
+	// Fill the sensor output table for later sending
+	bno055_output.yaw.val = yaw;
+	bno055_output.roll.val = roll;
+	bno055_output.pitch.val = pitch;
 // 	SEGGER_RTT_printf(0, "Raw euler angles: %ld, %ld, %ld\n", (int32_t)(yaw*10000.), (int32_t)(roll*10000.), (int32_t)(pitch*10000.));
 
     read_lia_data(data3);  // Read the x/y/z adc values   
@@ -355,6 +378,10 @@ void bno055_poll_data(void)
     lia[0] = (float)data3[0];  
     lia[1] = (float)data3[1];  
     lia[2] = (float)data3[2];   
+	// Fill the sensor output table for later sending
+	bno055_output.lia[0].val = lia[0];
+	bno055_output.lia[1].val = lia[1];
+	bno055_output.lia[2].val = lia[2];
 //	SEGGER_RTT_printf(0, "Raw LIA         : %ld, %ld, %ld\n", (int32_t)(lia[0]*10000.), (int32_t)(lia[1]*10000.), (int32_t)(lia[2]*10000.));
 
     read_grv_data(data3);  // Read the x/y/z adc values   
@@ -362,6 +389,10 @@ void bno055_poll_data(void)
     grv[0] = (float)data3[0];  
     grv[1] = (float)data3[1];  
     grv[2] = (float)data3[2];   
+	// Fill the sensor output table for later sending
+	bno055_output.grv[0].val = grv[0];
+	bno055_output.grv[1].val = grv[1];
+	bno055_output.grv[2].val = grv[2];
 //	SEGGER_RTT_printf(0, "Raw gravity     : %ld, %ld, %ld\n", (int32_t)(grv[0]*10000.), (int32_t)(grv[1]*10000.), (int32_t)(grv[2]*10000.));
 
 	// Chose (once) between unprecise but low-power ms app timer
@@ -374,8 +405,10 @@ void bno055_poll_data(void)
 	uint32_t now_us = nrf_drv_timer_capture(&TIMER_DELTA_US, NRF_TIMER_CC_CHANNEL0);
 	uint32_t delta_us = now_us - last_time_us;
 	last_time_us = now_us;
+	// Fill the sensor output table for later sending
+	bno055_output.ts_us = now_us;
 	
-	float deltat = (float)delta_us/1000000.;
+//	float deltat = (float)delta_us/1000000.;
 
 //	mahony_quaternion_update(ax, ay, az, gx*PI/180.0, gy*PI/180.0, gz*PI/180.0, my, mx, mz, deltat);
 //	madgwick_quaternion_update(ax, ay, az, gx*PI/180.0, gy*PI/180.0, gz*PI/180.0, my, mx, mz, deltat);

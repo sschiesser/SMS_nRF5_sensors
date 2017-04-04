@@ -239,6 +239,11 @@ enum MPwrMode { // MAG power mode
 	ForceMode  
 };
 
+typedef union float2bytes{
+	float val;
+	uint8_t b[4];
+} f2b_t;
+
 struct bno055_config_s {
 	enum Ascale a_scale;
 	enum Abw a_bw;
@@ -262,28 +267,39 @@ struct bno055_config_s {
 	//	bool ahrs;
 };
 struct bno055_output_s {
-	// The float variables for internal processing
-	float accel[3];
-	float gyro[3];
-	float mag[3];
-	float temp;
-	float quat[4];
-	float yaw;
-	float pitch;
-	float roll;
-	float lia[3];
-	float grv[3];
-	// The "sliced" 8-bit integers for serial transmision
-	uint8_t accel_i[3][4];
-	uint8_t gyro_i[3][4];
-	uint8_t mag_i[3][4];
-	uint8_t temp_i[4];
-	uint8_t quat_i[4][4];
-	uint8_t yaw_i[4];
-	uint8_t roll_i[4];
-	uint8_t pitch_i[4];
-	uint8_t lia_i[3][4];
-	uint8_t grv_i[3][4]
+	f2b_t accel[3];
+	f2b_t gyro[3];
+	f2b_t mag[3];
+	f2b_t temp;
+	f2b_t quat[4];
+	f2b_t yaw;
+	f2b_t roll;
+	f2b_t pitch;
+	f2b_t lia[3];
+	f2b_t grv[3];
+	uint32_t ts_us;
+//	// The float variables for internal processing
+//	float accel[3];
+//	float gyro[3];
+//	float mag[3];
+//	float temp;
+//	float quat[4];
+//	float yaw;
+//	float pitch;
+//	float roll;
+//	float lia[3];
+//	float grv[3];
+//	// The "sliced" 8-bit integers for serial transmision
+//	uint8_t accel_i[3][4];
+//	uint8_t gyro_i[3][4];
+//	uint8_t mag_i[3][4];
+//	uint8_t temp_i[4];
+//	uint8_t quat_i[4][4];
+//	uint8_t yaw_i[4];
+//	uint8_t roll_i[4];
+//	uint8_t pitch_i[4];
+//	uint8_t lia_i[3][4];
+//	uint8_t grv_i[3][4]
 };
 struct bno055_interrupt_s {
 	bool enabled;
