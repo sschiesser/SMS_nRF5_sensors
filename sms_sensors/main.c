@@ -587,7 +587,7 @@ void spi_event_handler(nrf_drv_spi_evt_t const * p_event)
 
 void pin_change_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
-	bno055_interrupt.new_value = true;
+	bno055_interrupt.new_int = true;
 //	bsp_board_led_invert(LEDBUTTON_LED_PIN);
 }
 
@@ -601,7 +601,7 @@ static void gpio_init(void)
 	err_code = nrf_drv_gpiote_in_init(DRDY_INT_PIN, &in_config, pin_change_handler);
 	APP_ERROR_CHECK(err_code);
 	
-	bno055_interrupt.new_value = false;
+	bno055_interrupt.new_int = false;
 	nrf_drv_gpiote_in_event_enable(DRDY_INT_PIN, true);
 }
 
@@ -760,7 +760,7 @@ static void ms58_calculate(void)
     /* deltaT: 8569150 - 8566784 = 2366 */
     deltaT = (int32_t)((int64_t)ms58_output.adc_values[MS58_TYPE_TEMP] - tv1);
 
-    /* TEMP = 20°C + dT*TEMPSENS = 2000 + dT * C6/2^23 */
+    /* TEMP = 20Â°C + dT*TEMPSENS = 2000 + dT * C6/2^23 */
     /* tv1: 28312 * 2366 = 66986192 */
     tv1 = ((int64_t)ms58_output.prom_values[6] * (int64_t)deltaT);
     /* tv2: 66986192 / 2^23 = 7(.985376358) */
@@ -828,6 +828,8 @@ int main(void)
 	ms58_output.complete = false;
 
 	twi_init();
+	bno055_reset();
+	nrf_delay_ms(500);
 	int ret = bno055_check();
 	if(!ret)
 	{
@@ -896,6 +898,12 @@ int main(void)
 //			}
 //		}
 		
+		if(bno055_interrupt.new_int) {
+//			SEGGER_RTT_printf(0, "BNO055 interrupt!\n");
+			bno055_interrupt.new_int = false;
+			bno055_poll_data();
+			bno055_int_reset();
+		}
 //		if(mpu9250_interrupt.new_gyro) {
 //			mpu9250_interrupt.new_gyro = false;
 //			mpu9250_poll_data();
@@ -907,9 +915,8 @@ int main(void)
 //			SEGGER_RTT_printf(0, "q1 %ld, q2 %ld, q3 %ld, q4 %ld\n", q1, q2, q3, q4);
 //		}
 
-		bno055_poll_data();
 		bsp_board_led_invert(LEDBUTTON_LED_PIN);
-		nrf_delay_ms(10);
+//		nrf_delay_ms(10);
 //		nrf_delay_ms(100);
 //		bsp_board_led_on(LEDBUTTON_LED_PIN);
 //		

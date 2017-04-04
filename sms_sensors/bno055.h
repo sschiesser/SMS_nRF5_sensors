@@ -140,7 +140,7 @@ enum Ascale {  // ACC Full Scale
 	AFS_2G = 0,
 	AFS_4G,
 	AFS_8G,
-	AFS_18G
+	AFS_16G
 };
 
 enum Abw { // ACC Bandwidth
@@ -303,7 +303,7 @@ struct bno055_output_s {
 };
 struct bno055_interrupt_s {
 	bool enabled;
-	volatile bool new_value;
+	volatile bool new_int;
 	volatile bool rts;
 };
 

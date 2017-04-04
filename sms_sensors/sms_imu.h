@@ -15,12 +15,14 @@
 
 #define PI					(3.1415926535897932384626433832795)
 
+void bno055_reset(void);
 int bno055_check(void);
 int bno055_test(void);
 void bno055_init_config_values(void);
 void bno055_calibrate_accel_gyro(float *dest1, float *dest2);
 void bno055_calibrate_mag(float *dest);
 void bno055_initialize(void);
+void bno055_int_reset(void);
 void bno055_poll_data(void);
 
 void read_accel_data(int16_t *destination);
