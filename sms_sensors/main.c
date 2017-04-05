@@ -236,7 +236,9 @@ static void advertising_init(void)
     ble_advdata_t advdata;
     ble_advdata_t scanrsp;
 
-    ble_uuid_t adv_uuids[] = {{LBS_UUID_SERVICE, m_lbs.uuid_type}};
+    ble_uuid_t adv_uuids[] = {{LBS_UUID_SERVICE, m_lbs.uuid_type}, 
+		{APS_UUID_SERVICE, m_aps.uuid_type},
+		{IMUS_UUID_SERVICE, m_imus.uuid_type}};
 
     // Build and set advertising data
     memset(&advdata, 0, sizeof(advdata));
@@ -846,6 +848,7 @@ int main(void)
     APP_ERROR_CHECK(err_code);
     buttons_init();
 
+	SEGGER_RTT_printf(0, "Initializing BLE...\n");
     ble_stack_init();
     gap_params_init();
     services_init();

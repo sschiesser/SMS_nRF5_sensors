@@ -424,6 +424,16 @@
               <FileType>5</FileType>
               <FilePath>..\..\..\ble_imus.h</FilePath>
             </File>
+            <File>
+              <FileName>ble_aps.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\ble_aps.c</FilePath>
+            </File>
+            <File>
+              <FileName>ble_imus.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\ble_imus.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -2450,6 +2460,16 @@
               <FileName>ble_imus.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\..\..\ble_imus.h</FilePath>
+            </File>
+            <File>
+              <FileName>ble_aps.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\ble_aps.c</FilePath>
+            </File>
+            <File>
+              <FileName>ble_imus.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\ble_imus.c</FilePath>
             </File>
           </Files>
         </Group>
