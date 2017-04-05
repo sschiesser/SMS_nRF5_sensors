@@ -414,6 +414,16 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\quaternion_ahrs.c</FilePath>
             </File>
+            <File>
+              <FileName>ble_aps.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\..\..\ble_aps.h</FilePath>
+            </File>
+            <File>
+              <FileName>ble_imus.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\..\..\ble_imus.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -2430,6 +2440,16 @@
               <FileName>quaternion_ahrs.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\quaternion_ahrs.c</FilePath>
+            </File>
+            <File>
+              <FileName>ble_aps.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\..\..\ble_aps.h</FilePath>
+            </File>
+            <File>
+              <FileName>ble_imus.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\..\..\ble_imus.h</FilePath>
             </File>
           </Files>
         </Group>

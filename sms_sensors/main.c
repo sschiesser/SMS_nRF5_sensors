@@ -31,6 +31,8 @@
 #include "ble_advdata.h"
 #include "ble_conn_params.h"
 #include "ble_lbs.h"
+#include "ble_aps.h"
+#include "ble_imus.h"
 #include "ble_gap.h"
 #include "bsp.h"
 #include "nrf_drv_spi.h"
@@ -86,6 +88,9 @@
 
 static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;    /**< Handle of the current connection. */
 static ble_lbs_t                        m_lbs;                                      /**< LED Button Service instance. */
+static ble_aps_t						m_aps;
+static ble_imus_t						m_imus;
+
 
 #define SPI_INSTANCE  0																/**< SPI instance index. */
 static const nrf_drv_spi_t spi_master_instance = NRF_DRV_SPI_INSTANCE(SPI_INSTANCE);  	/**< SPI instance. */
@@ -269,18 +274,34 @@ static void led_write_handler(ble_lbs_t * p_lbs, uint8_t led_state)
     }
 }
 
+static void pressure_write_handler(ble_aps_t * p_aps, uint8_t pressure_value)
+{
+}
+
+static void imu_write_handler(ble_imus_t * p_imus, uint8_t imu_value)
+{
+}
 
 /**@brief Function for initializing services that will be used by the application.
  */
 static void services_init(void)
 {
     uint32_t       err_code;
-    ble_lbs_init_t init;
-
-    init.led_write_handler = led_write_handler;
-
-    err_code = ble_lbs_init(&m_lbs, &init);
+    ble_lbs_init_t lbs_init;
+	ble_aps_init_t aps_init;
+	ble_imus_init_t imus_init;
+	
+	lbs_init.led_write_handler = led_write_handler;
+    err_code = ble_lbs_init(&m_lbs, &lbs_init);
     APP_ERROR_CHECK(err_code);
+	
+	aps_init.val_write_handler = pressure_write_handler;
+	err_code = ble_aps_init(&m_aps, &aps_init);
+	APP_ERROR_CHECK(err_code);
+	
+	imus_init.val_write_handler = imu_write_handler;
+	err_code = ble_imus_init(&m_imus, &imus_init);
+	APP_ERROR_CHECK(err_code);
 }
 
 
@@ -889,30 +910,6 @@ int main(void)
 	nrf_drv_timer_compare(&TIMER_DELTA_US, NRF_TIMER_CC_CHANNEL0, 1000000, true);
 	nrf_drv_timer_enable(&TIMER_DELTA_US);
 	
-//	while(1)
-//	{
-//		if(pressure_poll_int_done) {
-//			pressure_poll_int_done = false;
-//			ms58_read_data();
-//			if(ms58_output.complete) {
-//				ms58_calculate();
-////				SEGGER_RTT_printf(0, "Pressure: %ld, Temperature: %ld\n", ms58_output.pressure, ms58_output.temperature);
-//				ms58_output.complete = false;
-//			}
-//			else {
-//				ms58_output.complete = true;
-//			}
-//		}
-//		
-//		if(bno055_interrupt.new_int) {
-////			SEGGER_RTT_printf(0, "BNO055 interrupt!\n");
-//			bno055_interrupt.new_int = false;
-//			bno055_poll_data();
-//			bno055_int_reset();
-//		}
-
-//		bsp_board_led_invert(LEDBUTTON_LED_PIN);
-//	}
 
     // Start execution.
     NRF_LOG_INFO("Blinky Start!\r\n");
