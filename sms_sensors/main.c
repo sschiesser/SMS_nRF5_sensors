@@ -237,8 +237,8 @@ static void advertising_init(void)
     ble_advdata_t scanrsp;
 
     ble_uuid_t adv_uuids[] = {{LBS_UUID_SERVICE, m_lbs.uuid_type}, 
-		{APS_UUID_SERVICE, m_aps.uuid_type},
-		{IMUS_UUID_SERVICE, m_imus.uuid_type}};
+			{APS_UUID_SERVICE, m_aps.uuid_type},
+			{IMUS_UUID_SERVICE, m_imus.uuid_type}};
 
     // Build and set advertising data
     memset(&advdata, 0, sizeof(advdata));
