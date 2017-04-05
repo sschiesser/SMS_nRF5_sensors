@@ -90,3 +90,17 @@ uint32_t ble_aps_init(ble_aps_t * p_aps, const ble_aps_init_t * p_aps_init)
 
     return NRF_SUCCESS;
 }
+
+uint32_t ble_aps_on_new_value(ble_aps_t * p_aps, uint8_t value)
+{
+    ble_gatts_hvx_params_t params;
+    uint16_t len = sizeof(value);
+
+    memset(&params, 0, sizeof(params));
+    params.type = BLE_GATT_HVX_NOTIFICATION;
+    params.handle = p_aps->val_char_handles.value_handle;
+    params.p_data = &value;
+    params.p_len = &len;
+
+    return sd_ble_gatts_hvx(p_aps->conn_handle, &params);
+}

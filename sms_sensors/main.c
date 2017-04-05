@@ -236,32 +236,34 @@ static void advertising_init(void)
     uint32_t      err_code;
     ble_advdata_t advdata;
     ble_advdata_t scanrsp;
-	ble_adv_modes_config_t options;
-
-    ble_uuid_t adv_uuids[] = {{LBS_UUID_SERVICE, m_lbs.uuid_type}, {APS_UUID_SERVICE, m_aps.uuid_type}};
+//	// --- added ---
+//	ble_advdata_manuf_data_t manuf_data;
+//	// --- added ---
+	
+    ble_uuid_t adv_uuids[] = {{APS_UUID_SERVICE, m_aps.uuid_type}};
+//    ble_uuid_t adv_uuids[] = {{LBS_UUID_SERVICE, m_lbs.uuid_type}, {APS_UUID_SERVICE, m_aps.uuid_type}};
 	//, {IMUS_UUID_SERVICE, m_imus.uuid_type}};
 
+//	// --- added ---
+//	memset(&manuf_data, 0, sizeof(manuf_data));
+//	char myData[] = {"SomeData!"};
+//	manuf_data.company_identifier = 0x0059;
+//	manuf_data.data.p_data = (uint8_t *)myData;
+//	manuf_data.data.size = strlen(myData);
+//	// --- added ---
+	
     // Build and set advertising data
     memset(&advdata, 0, sizeof(advdata));
+    advdata.name_type          = BLE_ADVDATA_SHORT_NAME;
 
-    advdata.name_type          = BLE_ADVDATA_FULL_NAME;
+//	// --- added ---
+//	advdata.p_manuf_specific_data = &manuf_data;
+	advdata.short_name_len = 6;
+	// --- added ---
+
     advdata.include_appearance = true;
     advdata.flags              = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
 	
-//	advdata.uuids_complete.uuid_cnt = sizeof(adv_uuids) / sizeof(adv_uuids[0]);
-//	advdata.uuids_complete.p_uuids = adv_uuids;
-
-//	advdata.uuids_complete.uuid_cnt = sizeof(adv_uuids) / sizeof(adv_uuids[0]);
-//	advdata.uuids_complete.p_uuids = adv_uuids;
-//			
-//	memset(&options, 0, sizeof(options));
-//	options.ble_adv_fast_enabled = true;
-//	options.ble_adv_fast_interval = APP_ADV_INTERVAL;
-//	options.ble_adv_fast_timeout = APP_ADV_TIMEOUT_IN_SECONDS;
-//	
-//	err_code = ble_advertising_init(&advdata, NULL, &options, NULL, NULL);
-//    APP_ERROR_CHECK(err_code);
-
     memset(&scanrsp, 0, sizeof(scanrsp));
     scanrsp.uuids_complete.uuid_cnt = sizeof(adv_uuids) / sizeof(adv_uuids[0]);
     scanrsp.uuids_complete.p_uuids  = adv_uuids;
@@ -932,6 +934,8 @@ int main(void)
     NRF_LOG_INFO("Blinky Start!\r\n");
     advertising_start();
 
+	static uint8_t aps_cnt = 0;
+
     // Enter main loop.
     for (;;)
     {
@@ -946,6 +950,15 @@ int main(void)
 			if(ms58_output.complete) {
 				ms58_calculate();
 //				SEGGER_RTT_printf(0, "Pressure: %ld, Temperature: %ld\n", ms58_output.pressure, ms58_output.temperature);
+				SEGGER_RTT_printf(0, "Sending: %d\n", aps_cnt);
+				err_code = ble_aps_on_new_value(&m_aps, aps_cnt);
+				if (err_code != NRF_SUCCESS &&
+					err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
+					err_code != NRF_ERROR_INVALID_STATE)
+				{
+					APP_ERROR_CHECK(err_code);
+				}
+				aps_cnt += 1;
 				ms58_output.complete = false;
 			}
 			else {
