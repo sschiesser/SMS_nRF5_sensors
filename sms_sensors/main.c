@@ -31,9 +31,10 @@
 #include "ble_srv_common.h"
 #include "ble_advdata.h"
 #include "ble_conn_params.h"
-#include "ble_lbs.h"
-#include "ble_aps.h"
-#include "ble_imus.h"
+//#include "ble_lbs.h"
+//#include "ble_aps.h"
+//#include "ble_imus.h"
+#include "ble_smss.h"
 #include "ble_gap.h"
 #include "bsp.h"
 #include "nrf_drv_spi.h"
@@ -88,9 +89,10 @@
 #define DEAD_BEEF                       0xDEADBEEF                                  /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
 static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;    /**< Handle of the current connection. */
-static ble_lbs_t                        m_lbs;                                      /**< LED Button Service instance. */
-static ble_aps_t						m_aps;
-static ble_imus_t						m_imus;
+//static ble_lbs_t                        m_lbs;                                      /**< LED Button Service instance. */
+//static ble_aps_t						m_aps;
+//static ble_imus_t						m_imus;
+static ble_smss_t						m_smss;
 
 
 #define SPI_INSTANCE  0																/**< SPI instance index. */
@@ -240,7 +242,7 @@ static void advertising_init(void)
 //	ble_advdata_manuf_data_t manuf_data;
 //	// --- added ---
 	
-    ble_uuid_t adv_uuids[] = {{APS_UUID_SERVICE, m_aps.uuid_type}};
+    ble_uuid_t adv_uuids[] = {{SMSS_UUID_SERVICE, m_smss.uuid_type}};
 //    ble_uuid_t adv_uuids[] = {{LBS_UUID_SERVICE, m_lbs.uuid_type}, {APS_UUID_SERVICE, m_aps.uuid_type}};
 	//, {IMUS_UUID_SERVICE, m_imus.uuid_type}};
 
@@ -278,7 +280,7 @@ static void advertising_init(void)
  * @param[in] p_lbs     Instance of LED Button Service to which the write applies.
  * @param[in] led_state Written/desired state of the LED.
  */
-static void led_write_handler(ble_lbs_t * p_lbs, uint8_t led_state)
+static void led_write_handler(ble_smss_t * p_smss, uint8_t led_state)
 {
     if (led_state)
     {
@@ -292,11 +294,15 @@ static void led_write_handler(ble_lbs_t * p_lbs, uint8_t led_state)
     }
 }
 
-static void pressure_write_handler(ble_aps_t * p_aps, uint8_t pressure_value)
+static void pressure_write_handler(ble_smss_t * p_smss, uint8_t pressure_value)
 {
 }
 
-static void imu_write_handler(ble_imus_t * p_imus, uint8_t imu_value)
+static void imu_write_handler(ble_smss_t * p_smss, uint8_t imu_value)
+{
+}
+
+static void button_write_handler(ble_smss_t * p_smss, uint8_t button_state)
 {
 }
 
@@ -305,21 +311,26 @@ static void imu_write_handler(ble_imus_t * p_imus, uint8_t imu_value)
 static void services_init(void)
 {
     uint32_t       err_code;
-    ble_lbs_init_t lbs_init;
-	ble_aps_init_t aps_init;
-	ble_imus_init_t imus_init;
-	
-	lbs_init.led_write_handler = led_write_handler;
-    err_code = ble_lbs_init(&m_lbs, &lbs_init);
-    APP_ERROR_CHECK(err_code);
-	
-	aps_init.val_write_handler = pressure_write_handler;
-	err_code = ble_aps_init(&m_aps, &aps_init);
+	ble_smss_init_t smss_init;
+
+	smss_init.led_write_handler = led_write_handler;
+	smss_init.button_write_handler = button_write_handler;
+	smss_init.press_write_handler = pressure_write_handler;
+	smss_init.imu_write_handler = imu_write_handler;
+	err_code = ble_smss_init(&m_smss, &smss_init);
 	APP_ERROR_CHECK(err_code);
 	
-	imus_init.val_write_handler = imu_write_handler;
-	err_code = ble_imus_init(&m_imus, &imus_init);
-	APP_ERROR_CHECK(err_code);
+//	lbs_init.led_write_handler = led_write_handler;
+//    err_code = ble_lbs_init(&m_lbs, &lbs_init);
+//    APP_ERROR_CHECK(err_code);
+//	
+//	aps_init.val_write_handler = pressure_write_handler;
+//	err_code = ble_aps_init(&m_aps, &aps_init);
+//	APP_ERROR_CHECK(err_code);
+//	
+//	imus_init.val_write_handler = imu_write_handler;
+//	err_code = ble_imus_init(&m_imus, &imus_init);
+//	APP_ERROR_CHECK(err_code);
 }
 
 
@@ -523,7 +534,7 @@ static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
 {
     on_ble_evt(p_ble_evt);
     ble_conn_params_on_ble_evt(p_ble_evt);
-    ble_lbs_on_ble_evt(&m_lbs, p_ble_evt);
+    ble_smss_on_ble_evt(&m_smss, p_ble_evt);
 }
 
 
@@ -575,7 +586,7 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
     {
         case LEDBUTTON_BUTTON_PIN:
             NRF_LOG_INFO("Send button state change.\r\n");            
-            err_code = ble_lbs_on_button_change(&m_lbs, button_action);
+            err_code = ble_smss_on_button_change(&m_smss, button_action);
             if (err_code != NRF_SUCCESS &&
                 err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
                 err_code != NRF_ERROR_INVALID_STATE)
@@ -587,7 +598,7 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
  		case LEDBUTTON_BUTTON_PIN2:
 			NRF_LOG_INFO("Send button 2 state change.\r\n");
 			button_action |= 0x10;
-			err_code = ble_lbs_on_button_change(&m_lbs, button_action);
+			err_code = ble_smss_on_button_change(&m_smss, button_action);
 			if(err_code != NRF_SUCCESS &&
 				 err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
 				 err_code != NRF_ERROR_INVALID_STATE)
@@ -934,8 +945,6 @@ int main(void)
     NRF_LOG_INFO("Blinky Start!\r\n");
     advertising_start();
 
-	static uint8_t aps_cnt = 0;
-
     // Enter main loop.
     for (;;)
     {
@@ -950,15 +959,15 @@ int main(void)
 			if(ms58_output.complete) {
 				ms58_calculate();
 //				SEGGER_RTT_printf(0, "Pressure: %ld, Temperature: %ld\n", ms58_output.pressure, ms58_output.temperature);
-				SEGGER_RTT_printf(0, "Sending: %d\n", aps_cnt);
-				err_code = ble_aps_on_new_value(&m_aps, aps_cnt);
-				if (err_code != NRF_SUCCESS &&
-					err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
-					err_code != NRF_ERROR_INVALID_STATE)
-				{
-					APP_ERROR_CHECK(err_code);
-				}
-				aps_cnt += 1;
+//				SEGGER_RTT_printf(0, "Sending: %d\n", aps_cnt);
+//				err_code = ble_aps_on_new_value(&m_aps, aps_cnt);
+//				if (err_code != NRF_SUCCESS &&
+//					err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
+//					err_code != NRF_ERROR_INVALID_STATE)
+//				{
+//					APP_ERROR_CHECK(err_code);
+//				}
+//				aps_cnt += 1;
 				ms58_output.complete = false;
 			}
 			else {

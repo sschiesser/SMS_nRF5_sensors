@@ -434,6 +434,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\ble_imus.c</FilePath>
             </File>
+            <File>
+              <FileName>ble_smss.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\..\..\..\ble_smss.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -2593,6 +2598,11 @@
               <FileName>ble_imus.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\ble_imus.c</FilePath>
+            </File>
+            <File>
+              <FileName>ble_smss.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\..\..\..\ble_smss.h</FilePath>
             </File>
           </Files>
         </Group>
