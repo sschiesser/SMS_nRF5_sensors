@@ -6,6 +6,7 @@
 #include "sdk_common.h"
 #include "ble_smss.h"
 #include "ble_srv_common.h"
+#include "SEGGER_RTT.h"
 
 
 /**@brief Function for handling the Connect event.
@@ -308,11 +309,17 @@ uint32_t ble_smss_init(ble_smss_t * p_smss, const ble_smss_init_t * p_smss_init)
 	err_code = imu_char_add(p_smss, p_smss_init);
 	VERIFY_SUCCESS(err_code);
 	
+	SEGGER_RTT_WriteString(0, "SMS Service initialized\n");
+	SEGGER_RTT_printf(0, "service uuid: 0x%#04x\n", ble_uuid.uuid);
+	SEGGER_RTT_printf(0, "service type: 0x%#02x\n", ble_uuid.type);
+	SEGGER_RTT_printf(0, "service handle: 0x%#04x\n", p_smss->conn_handle);
+	
     return NRF_SUCCESS;
 }
 
 uint32_t ble_smss_on_button_change(ble_smss_t * p_smss, uint8_t button_state)
 {
+	SEGGER_RTT_printf(0, "on button change...\r\n");
     ble_gatts_hvx_params_t params;
     uint16_t len = sizeof(button_state);
 
@@ -322,5 +329,23 @@ uint32_t ble_smss_on_button_change(ble_smss_t * p_smss, uint8_t button_state)
     params.p_data = &button_state;
     params.p_len = &len;
 
+	SEGGER_RTT_printf(0, "Sending: %d to 0x%x->%x\n", params.p_data[0], p_smss->conn_handle, params.handle);
     return sd_ble_gatts_hvx(p_smss->conn_handle, &params);
+}
+
+uint32_t ble_smss_on_press_value(ble_smss_t * p_smss, uint8_t value)
+{
+	SEGGER_RTT_printf(0, "on press value...\r\n");
+	ble_gatts_hvx_params_t params;
+	uint16_t len = sizeof(value);
+	
+	memset(&params, 0, sizeof(params));
+	params.type = BLE_GATT_HVX_NOTIFICATION;
+	params.handle = p_smss->press_char_handles.value_handle;
+	params.p_data = &value;
+	params.p_len = &len;
+	
+	SEGGER_RTT_printf(0, "Sending: %d to 0x%x->%x\n", params.p_data[0], p_smss->conn_handle, params.handle);
+	return NRF_SUCCESS;
+//	return sd_ble_gatts_hvx(p_smss->conn_handle, &params);
 }

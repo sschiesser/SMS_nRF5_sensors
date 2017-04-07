@@ -256,11 +256,11 @@ static void advertising_init(void)
 	
     // Build and set advertising data
     memset(&advdata, 0, sizeof(advdata));
-    advdata.name_type          = BLE_ADVDATA_SHORT_NAME;
+    advdata.name_type          = BLE_ADVDATA_FULL_NAME;
 
 //	// --- added ---
 //	advdata.p_manuf_specific_data = &manuf_data;
-	advdata.short_name_len = 6;
+//	advdata.short_name_len = 6;
 	// --- added ---
 
     advdata.include_appearance = true;
@@ -587,7 +587,7 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
         case LEDBUTTON_BUTTON_PIN:
             NRF_LOG_INFO("Send button state change.\r\n");            
             err_code = ble_smss_on_button_change(&m_smss, button_action);
-            if (err_code != NRF_SUCCESS &&
+			if (err_code != NRF_SUCCESS &&
                 err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
                 err_code != NRF_ERROR_INVALID_STATE)
             {
@@ -598,7 +598,8 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
  		case LEDBUTTON_BUTTON_PIN2:
 			NRF_LOG_INFO("Send button 2 state change.\r\n");
 			button_action |= 0x10;
-			err_code = ble_smss_on_button_change(&m_smss, button_action);
+//			err_code = ble_smss_on_button_change(&m_smss, button_action);
+			err_code = ble_smss_on_press_value(&m_smss, button_action);
 			if(err_code != NRF_SUCCESS &&
 				 err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
 				 err_code != NRF_ERROR_INVALID_STATE)
