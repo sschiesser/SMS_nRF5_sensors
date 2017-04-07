@@ -415,29 +415,14 @@
               <FilePath>..\..\..\quaternion_ahrs.c</FilePath>
             </File>
             <File>
-              <FileName>ble_aps.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\..\..\ble_aps.h</FilePath>
-            </File>
-            <File>
-              <FileName>ble_imus.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\..\..\ble_imus.h</FilePath>
-            </File>
-            <File>
-              <FileName>ble_aps.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\ble_aps.c</FilePath>
-            </File>
-            <File>
-              <FileName>ble_imus.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\ble_imus.c</FilePath>
-            </File>
-            <File>
               <FileName>ble_smss.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\..\..\..\ble_smss.h</FilePath>
+              <FilePath>..\..\..\ble_smss.h</FilePath>
+            </File>
+            <File>
+              <FileName>ble_smss.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\ble_smss.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -2580,29 +2565,14 @@
               <FilePath>..\..\..\quaternion_ahrs.c</FilePath>
             </File>
             <File>
-              <FileName>ble_aps.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\..\..\ble_aps.h</FilePath>
-            </File>
-            <File>
-              <FileName>ble_imus.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\..\..\ble_imus.h</FilePath>
-            </File>
-            <File>
-              <FileName>ble_aps.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\ble_aps.c</FilePath>
-            </File>
-            <File>
-              <FileName>ble_imus.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\ble_imus.c</FilePath>
-            </File>
-            <File>
               <FileName>ble_smss.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\..\..\..\ble_smss.h</FilePath>
+              <FilePath>..\..\..\ble_smss.h</FilePath>
+            </File>
+            <File>
+              <FileName>ble_smss.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\ble_smss.c</FilePath>
             </File>
           </Files>
         </Group>

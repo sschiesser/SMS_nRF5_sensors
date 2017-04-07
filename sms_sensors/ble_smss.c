@@ -128,27 +128,34 @@ static uint32_t led_char_add(ble_smss_t * p_smss, const ble_smss_init_t * p_smss
 static uint32_t press_char_add(ble_smss_t * p_smss, const ble_smss_init_t * p_smss_init)
 {
     ble_gatts_char_md_t char_md;
+    ble_gatts_attr_md_t cccd_md;
     ble_gatts_attr_t    attr_char_value;
     ble_uuid_t          ble_uuid;
     ble_gatts_attr_md_t attr_md;
 
+    memset(&cccd_md, 0, sizeof(cccd_md));
+
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&cccd_md.read_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&cccd_md.write_perm);
+    cccd_md.vloc = BLE_GATTS_VLOC_STACK;
+
     memset(&char_md, 0, sizeof(char_md));
 
     char_md.char_props.read   = 1;
-    char_md.char_props.write  = 1;
+    char_md.char_props.notify = 1;
     char_md.p_char_user_desc  = NULL;
     char_md.p_char_pf         = NULL;
     char_md.p_user_desc_md    = NULL;
-    char_md.p_cccd_md         = NULL;
+    char_md.p_cccd_md         = &cccd_md;
     char_md.p_sccd_md         = NULL;
 
     ble_uuid.type = p_smss->uuid_type;
-    ble_uuid.uuid = SMSS_UUID_PRESS_CHAR;
+    ble_uuid.uuid = SMSS_UUID_BUTTON_CHAR;
 
     memset(&attr_md, 0, sizeof(attr_md));
 
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.read_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.write_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&attr_md.write_perm);
     attr_md.vloc       = BLE_GATTS_VLOC_STACK;
     attr_md.rd_auth    = 0;
     attr_md.wr_auth    = 0;
@@ -164,35 +171,42 @@ static uint32_t press_char_add(ble_smss_t * p_smss, const ble_smss_init_t * p_sm
     attr_char_value.p_value      = NULL;
 
     return sd_ble_gatts_characteristic_add(p_smss->service_handle,
-                                           &char_md,
-                                           &attr_char_value,
-                                           &p_smss->press_char_handles);
+                                               &char_md,
+                                               &attr_char_value,
+                                               &p_smss->press_char_handles);
 }
 
 static uint32_t imu_char_add(ble_smss_t * p_smss, const ble_smss_init_t * p_smss_init)
 {
     ble_gatts_char_md_t char_md;
+    ble_gatts_attr_md_t cccd_md;
     ble_gatts_attr_t    attr_char_value;
     ble_uuid_t          ble_uuid;
     ble_gatts_attr_md_t attr_md;
 
+    memset(&cccd_md, 0, sizeof(cccd_md));
+
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&cccd_md.read_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&cccd_md.write_perm);
+    cccd_md.vloc = BLE_GATTS_VLOC_STACK;
+
     memset(&char_md, 0, sizeof(char_md));
 
     char_md.char_props.read   = 1;
-    char_md.char_props.write  = 1;
+    char_md.char_props.notify = 1;
     char_md.p_char_user_desc  = NULL;
     char_md.p_char_pf         = NULL;
     char_md.p_user_desc_md    = NULL;
-    char_md.p_cccd_md         = NULL;
+    char_md.p_cccd_md         = &cccd_md;
     char_md.p_sccd_md         = NULL;
 
     ble_uuid.type = p_smss->uuid_type;
-    ble_uuid.uuid = SMSS_UUID_IMU_CHAR;
+    ble_uuid.uuid = SMSS_UUID_BUTTON_CHAR;
 
     memset(&attr_md, 0, sizeof(attr_md));
 
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.read_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.write_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&attr_md.write_perm);
     attr_md.vloc       = BLE_GATTS_VLOC_STACK;
     attr_md.rd_auth    = 0;
     attr_md.wr_auth    = 0;
@@ -208,9 +222,9 @@ static uint32_t imu_char_add(ble_smss_t * p_smss, const ble_smss_init_t * p_smss
     attr_char_value.p_value      = NULL;
 
     return sd_ble_gatts_characteristic_add(p_smss->service_handle,
-                                           &char_md,
-                                           &attr_char_value,
-                                           &p_smss->imu_char_handles);
+                                               &char_md,
+                                               &attr_char_value,
+                                               &p_smss->imu_char_handles);
 }
 
 
@@ -313,6 +327,18 @@ uint32_t ble_smss_init(ble_smss_t * p_smss, const ble_smss_init_t * p_smss_init)
 	SEGGER_RTT_printf(0, "service uuid: 0x%#04x\n", ble_uuid.uuid);
 	SEGGER_RTT_printf(0, "service type: 0x%#02x\n", ble_uuid.type);
 	SEGGER_RTT_printf(0, "service handle: 0x%#04x\n", p_smss->conn_handle);
+	SEGGER_RTT_printf(0, "Button char...\n-value handle 0x%04x\n-cccd handle 0x%04x\n- user desc handle 0x%04x\n", 
+				p_smss->button_char_handles.value_handle, 
+				p_smss->button_char_handles.cccd_handle,
+				p_smss->button_char_handles.user_desc_handle);
+	SEGGER_RTT_printf(0, "Pressure char...\n-value handle 0x%04x\n-cccd handle 0x%04x\n- user desc handle 0x%04x\n", 
+				p_smss->press_char_handles.value_handle, 
+				p_smss->press_char_handles.cccd_handle,
+				p_smss->press_char_handles.user_desc_handle);
+	SEGGER_RTT_printf(0, "IMU char...\n-value handle 0x%04x\n-cccd handle 0x%04x\n- user desc handle 0x%04x\n", 
+				p_smss->imu_char_handles.value_handle, 
+				p_smss->imu_char_handles.cccd_handle,
+				p_smss->imu_char_handles.user_desc_handle);
 	
     return NRF_SUCCESS;
 }
@@ -326,10 +352,11 @@ uint32_t ble_smss_on_button_change(ble_smss_t * p_smss, uint8_t button_state)
     memset(&params, 0, sizeof(params));
     params.type = BLE_GATT_HVX_NOTIFICATION;
     params.handle = p_smss->button_char_handles.value_handle;
+//    params.handle = p_smss->press_char_handles.value_handle;
     params.p_data = &button_state;
     params.p_len = &len;
 
-	SEGGER_RTT_printf(0, "Sending: %d to 0x%x->%x\n", params.p_data[0], p_smss->conn_handle, params.handle);
+	SEGGER_RTT_printf(0, "Sending: 0x%02x to 0x%04x->0x%04x\n", params.p_data[0], p_smss->conn_handle, params.handle);
     return sd_ble_gatts_hvx(p_smss->conn_handle, &params);
 }
 
@@ -345,7 +372,7 @@ uint32_t ble_smss_on_press_value(ble_smss_t * p_smss, uint8_t value)
 	params.p_data = &value;
 	params.p_len = &len;
 	
-	SEGGER_RTT_printf(0, "Sending: %d to 0x%x->%x\n", params.p_data[0], p_smss->conn_handle, params.handle);
-	return NRF_SUCCESS;
-//	return sd_ble_gatts_hvx(p_smss->conn_handle, &params);
+	SEGGER_RTT_printf(0, "Sending: 0x%02x to 0x%04x->0x%04x\n", params.p_data[0], p_smss->conn_handle, params.handle);
+//	return NRF_SUCCESS;
+	return sd_ble_gatts_hvx(p_smss->conn_handle, &params);
 }

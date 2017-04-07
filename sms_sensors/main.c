@@ -428,6 +428,8 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
             bsp_board_led_off(ADVERTISING_LED_PIN);
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
 
+			NRF_LOG_INFO("Received handle 0x%04x", m_conn_handle);
+		
             err_code = app_button_enable();
             APP_ERROR_CHECK(err_code);
             break; // BLE_GAP_EVT_CONNECTED
@@ -587,6 +589,7 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
         case LEDBUTTON_BUTTON_PIN:
             NRF_LOG_INFO("Send button state change.\r\n");            
             err_code = ble_smss_on_button_change(&m_smss, button_action);
+//			err_code = ble_smss_on_press_value(&m_smss, button_action);
 			if (err_code != NRF_SUCCESS &&
                 err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
                 err_code != NRF_ERROR_INVALID_STATE)
@@ -598,8 +601,8 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
  		case LEDBUTTON_BUTTON_PIN2:
 			NRF_LOG_INFO("Send button 2 state change.\r\n");
 			button_action |= 0x10;
-			err_code = ble_smss_on_button_change(&m_smss, button_action);
-//			err_code = ble_smss_on_press_value(&m_smss, button_action);
+//			err_code = ble_smss_on_button_change(&m_smss, button_action);
+			err_code = ble_smss_on_press_value(&m_smss, button_action);
 			if(err_code != NRF_SUCCESS &&
 				 err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
 				 err_code != NRF_ERROR_INVALID_STATE)
