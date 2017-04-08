@@ -314,9 +314,9 @@ static void services_init(void)
 	ble_smss_init_t smss_init;
 
 	smss_init.led_write_handler = led_write_handler;
-	smss_init.button_write_handler = button_write_handler;
-	smss_init.press_write_handler = pressure_write_handler;
-	smss_init.imu_write_handler = imu_write_handler;
+//	smss_init.button_write_handler = button_write_handler;
+//	smss_init.press_write_handler = pressure_write_handler;
+//	smss_init.imu_write_handler = imu_write_handler;
 	err_code = ble_smss_init(&m_smss, &smss_init);
 	APP_ERROR_CHECK(err_code);
 	
@@ -428,7 +428,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
             bsp_board_led_off(ADVERTISING_LED_PIN);
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
 
-			NRF_LOG_INFO("Received handle 0x%04x", m_conn_handle);
+			NRF_LOG_INFO("Received handle 0x%04x\n", m_conn_handle);
 		
             err_code = app_button_enable();
             APP_ERROR_CHECK(err_code);

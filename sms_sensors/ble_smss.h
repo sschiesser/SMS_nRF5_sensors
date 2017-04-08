@@ -57,18 +57,18 @@ extern "C" {
 typedef struct ble_smss_s ble_smss_t;
 
 typedef void (*ble_smss_led_write_handler_t) (ble_smss_t * p_smss, uint8_t new_state);
-typedef void (*ble_smss_button_write_handler_t) (ble_smss_t * p_smss, uint8_t button_state);
-typedef void (*ble_smss_press_write_handler_t) (ble_smss_t * p_smss, uint8_t press_value);
-typedef void (*ble_smss_imu_write_handler_t) (ble_smss_t * p_smss, uint8_t imu_value);
+//typedef void (*ble_smss_button_write_handler_t) (ble_smss_t * p_smss, uint8_t button_state);
+//typedef void (*ble_smss_press_write_handler_t) (ble_smss_t * p_smss, uint8_t press_value);
+//typedef void (*ble_smss_imu_write_handler_t) (ble_smss_t * p_smss, uint8_t imu_value);
 							  
 /** @brief LED Button Service init structure. This structure contains all options and data needed for
  *        initialization of the service.*/
 typedef struct
 {
     ble_smss_led_write_handler_t led_write_handler; /**< Event handler to be called when the LED Characteristic is written. */
-	ble_smss_button_write_handler_t button_write_handler;
-	ble_smss_press_write_handler_t press_write_handler;
-	ble_smss_imu_write_handler_t imu_write_handler;
+//	ble_smss_button_write_handler_t button_write_handler;
+//	ble_smss_press_write_handler_t press_write_handler;
+//	ble_smss_imu_write_handler_t imu_write_handler;
 } ble_smss_init_t;
 
 /**@brief LED Button Service structure. This structure contains various status information for the service. */
@@ -82,10 +82,10 @@ struct ble_smss_s
     uint8_t                     uuid_type;           /**< UUID type for the LED Button Service. */
     uint16_t                    conn_handle;         /**< Handle of the current connection (as provided by the BLE stack). BLE_CONN_HANDLE_INVALID if not in a connection. */
     ble_smss_led_write_handler_t led_write_handler;   /**< Event handler to be called when the LED Characteristic is written. */
-	ble_smss_button_write_handler_t button_write_handler;
-	ble_smss_press_write_handler_t press_write_handler;
-	ble_smss_imu_write_handler_t imu_write_handler;
-};
+//	ble_smss_button_write_handler_t button_write_handler;
+//	ble_smss_press_write_handler_t press_write_handler;
+//	ble_smss_imu_write_handler_t imu_write_handler;
+}; // ble_smss_t;
 
 /**@brief Function for initializing the LED Button Service.
  *
@@ -96,7 +96,7 @@ struct ble_smss_s
  *
  * @retval NRF_SUCCESS If the service was initialized successfully. Otherwise, an error code is returned.
  */
-uint32_t ble_smss_init(ble_smss_t * p_lbs, const ble_smss_init_t * p_smss_init);
+uint32_t ble_smss_init(ble_smss_t * p_smss, const ble_smss_init_t * p_smss_init);
 
 /**@brief Function for handling the application's BLE stack events.
  *
