@@ -365,12 +365,12 @@ uint32_t ble_smss_on_press_value(ble_smss_t * p_smss, uint8_t value)
 	SEGGER_RTT_printf(0, "on press value...\r\n");
 	ble_gatts_hvx_params_t params;
 	uint16_t len = sizeof(value);
-	uint8_t content = value;
+//	uint8_t content = value;
 	
 	memset(&params, 0, sizeof(params));
 	params.type = BLE_GATT_HVX_NOTIFICATION;
 	params.handle = p_smss->press_char_handles.value_handle;
-	params.p_data = &content;
+	params.p_data = &value;
 	params.p_len = &len;
 	
 	SEGGER_RTT_printf(0, "Sending: 0x%02x to 0x%04x->0x%04x\n", params.p_data[0], p_smss->conn_handle, params.handle);

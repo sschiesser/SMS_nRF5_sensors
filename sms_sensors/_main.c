@@ -88,8 +88,6 @@
 
 #define DEAD_BEEF                       0xDEADBEEF                                  /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
-
-static uint8_t							* m_sys_attibutes = NULL;
 static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;    /**< Handle of the current connection. */
 //static ble_lbs_t                        m_lbs;                                      /**< LED Button Service instance. */
 //static ble_aps_t						m_aps;
@@ -120,8 +118,6 @@ static volatile uint32_t micros_cnt_overflow = 0;
 const nrf_drv_timer_t TIMER_DELTA_US = NRF_DRV_TIMER_INSTANCE(TIMER_INSTANCE);
 uint32_t old_cap = 0;
 uint32_t old_cap1 = 0;
-
-
 
 /**@brief Function for assert macro callback.
  *
@@ -423,7 +419,6 @@ static void advertising_start(void)
 static void on_ble_evt(ble_evt_t * p_ble_evt)
 {
     uint32_t err_code;
-	uint16_t *attr_len;
 
     switch (p_ble_evt->header.evt_id)
     {
@@ -435,10 +430,6 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 
 			NRF_LOG_INFO("Received handle 0x%04x\n", m_conn_handle);
 		
-			NRF_LOG_INFO("Updating persistent system attribute informations\n");
-			err_code = sd_ble_gatts_sys_attr_set(m_conn_handle, NULL, 0, 0);
-			APP_ERROR_CHECK(err_code);
-		
             err_code = app_button_enable();
             APP_ERROR_CHECK(err_code);
             break; // BLE_GAP_EVT_CONNECTED
@@ -446,13 +437,6 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
         case BLE_GAP_EVT_DISCONNECTED:
             NRF_LOG_INFO("Disconnected\r\n");
             bsp_board_led_off(CONNECTED_LED_PIN);
-//			err_code = sd_ble_gatts_sys_attr_get(m_conn_handle, NULL, attr_len, 0);
-//			APP_ERROR_CHECK(err_code);
-//			NRF_LOG_INFO("attr_len = %d\n");
-
-//			err_code = sd_ble_gatts_sys_attr_get(m_conn_handle, m_sys_attibutes, attr_len, 0);
-//			APP_ERROR_CHECK(err_code);
-		
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
 
             err_code = app_button_disable();
