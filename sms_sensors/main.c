@@ -231,6 +231,28 @@ static void gap_params_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
+/**@brief Function for handling advertising events.
+ *
+ * @details This function will be called for advertising events which are passed to the application.
+ *
+ * @param[in] ble_adv_evt  Advertising event.
+ */
+static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
+{
+	uint32_t err_code;
+	
+	switch(ble_adv_evt)
+	{
+		case BLE_ADV_EVT_FAST:
+			bsp_board_led_on(ADVERTISING_LED_PIN);
+			break;
+		case BLE_ADV_EVT_IDLE:
+//			sleep_mode_enter();
+			break;
+		default:
+			break;
+	}
+}
 
 /**@brief Function for initializing the Advertising functionality.
  *
@@ -241,41 +263,20 @@ static void advertising_init(void)
 {
     uint32_t      err_code;
     ble_advdata_t advdata;
-    ble_advdata_t scanrsp;
-//	// --- added ---
-//	ble_advdata_manuf_data_t manuf_data;
-//	// --- added ---
+ 	ble_adv_modes_config_t options;
+   
+	memset(&advdata, 0, sizeof(advdata));
 	
-    ble_uuid_t adv_uuids[] = {{SMSS_UUID_SERVICE, m_smss.uuid_type}};
-//    ble_uuid_t adv_uuids[] = {{LBS_UUID_SERVICE, m_lbs.uuid_type}, {APS_UUID_SERVICE, m_aps.uuid_type}};
-	//, {IMUS_UUID_SERVICE, m_imus.uuid_type}};
-
-//	// --- added ---
-//	memset(&manuf_data, 0, sizeof(manuf_data));
-//	char myData[] = {"SomeData!"};
-//	manuf_data.company_identifier = 0x0059;
-//	manuf_data.data.p_data = (uint8_t *)myData;
-//	manuf_data.data.size = strlen(myData);
-//	// --- added ---
+	advdata.name_type = BLE_ADVDATA_FULL_NAME;
+	advdata.flags = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
 	
-    // Build and set advertising data
-    memset(&advdata, 0, sizeof(advdata));
-    advdata.name_type          = BLE_ADVDATA_FULL_NAME;
-
-//	// --- added ---
-//	advdata.p_manuf_specific_data = &manuf_data;
-//	advdata.short_name_len = 6;
-	// --- added ---
-
-    advdata.include_appearance = true;
-    advdata.flags              = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
+	memset(&options, 0, sizeof(options));
+	options.ble_adv_fast_enabled = true;
+	options.ble_adv_fast_interval = APP_ADV_INTERVAL;
+	options.ble_adv_fast_timeout = APP_ADV_TIMEOUT_IN_SECONDS;
 	
-    memset(&scanrsp, 0, sizeof(scanrsp));
-    scanrsp.uuids_complete.uuid_cnt = sizeof(adv_uuids) / sizeof(adv_uuids[0]);
-    scanrsp.uuids_complete.p_uuids  = adv_uuids;
-
-    err_code = ble_advdata_set(&advdata, &scanrsp);
-    APP_ERROR_CHECK(err_code);
+	err_code = ble_advertising_init(&advdata, NULL, &options, on_adv_evt, NULL);
+	APP_ERROR_CHECK(err_code);
 }
 
 
@@ -314,27 +315,7 @@ static void button_write_handler(ble_smss_t * p_smss, uint8_t button_state)
  */
 static void services_init(void)
 {
-    uint32_t       err_code;
-	ble_smss_init_t smss_init;
-
-	smss_init.led_write_handler = led_write_handler;
-//	smss_init.button_write_handler = button_write_handler;
-//	smss_init.press_write_handler = pressure_write_handler;
-//	smss_init.imu_write_handler = imu_write_handler;
-	err_code = ble_smss_init(&m_smss, &smss_init);
-	APP_ERROR_CHECK(err_code);
-	
-//	lbs_init.led_write_handler = led_write_handler;
-//    err_code = ble_lbs_init(&m_lbs, &lbs_init);
-//    APP_ERROR_CHECK(err_code);
-//	
-//	aps_init.val_write_handler = pressure_write_handler;
-//	err_code = ble_aps_init(&m_aps, &aps_init);
-//	APP_ERROR_CHECK(err_code);
-//	
-//	imus_init.val_write_handler = imu_write_handler;
-//	err_code = ble_imus_init(&m_imus, &imus_init);
-//	APP_ERROR_CHECK(err_code);
+	ble_smss_init(&m_smss);
 }
 
 
@@ -393,27 +374,26 @@ static void conn_params_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
+///**@brief Function for starting advertising.
+// */
+//static void advertising_start(void)
+//{
+//    uint32_t             err_code;
+//    ble_gap_adv_params_t adv_params;
 
-/**@brief Function for starting advertising.
- */
-static void advertising_start(void)
-{
-    uint32_t             err_code;
-    ble_gap_adv_params_t adv_params;
+//    // Start advertising
+//    memset(&adv_params, 0, sizeof(adv_params));
 
-    // Start advertising
-    memset(&adv_params, 0, sizeof(adv_params));
+//    adv_params.type        = BLE_GAP_ADV_TYPE_ADV_IND;
+//    adv_params.p_peer_addr = NULL;
+//    adv_params.fp          = BLE_GAP_ADV_FP_ANY;
+//    adv_params.interval    = APP_ADV_INTERVAL;
+//    adv_params.timeout     = APP_ADV_TIMEOUT_IN_SECONDS;
 
-    adv_params.type        = BLE_GAP_ADV_TYPE_ADV_IND;
-    adv_params.p_peer_addr = NULL;
-    adv_params.fp          = BLE_GAP_ADV_FP_ANY;
-    adv_params.interval    = APP_ADV_INTERVAL;
-    adv_params.timeout     = APP_ADV_TIMEOUT_IN_SECONDS;
-
-    err_code = sd_ble_gap_adv_start(&adv_params);
-    APP_ERROR_CHECK(err_code);
-    bsp_board_led_on(ADVERTISING_LED_PIN);
-}
+//    err_code = sd_ble_gap_adv_start(&adv_params);
+//    APP_ERROR_CHECK(err_code);
+//    bsp_board_led_on(ADVERTISING_LED_PIN);
+//}
 
 
 /**@brief Function for handling the Application's BLE stack events.
@@ -458,7 +438,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
             err_code = app_button_disable();
             APP_ERROR_CHECK(err_code);
 
-            advertising_start();
+            ble_advertising_start(BLE_ADV_MODE_FAST);
             break; // BLE_GAP_EVT_DISCONNECTED
 
         case BLE_GAP_EVT_SEC_PARAMS_REQUEST:
@@ -963,7 +943,8 @@ int main(void)
 
     // Start execution.
     NRF_LOG_INFO("Blinky Start!\r\n");
-    advertising_start();
+	bsp_board_led_on(ADVERTISING_LED_PIN);
+	ble_advertising_start(BLE_ADV_MODE_FAST);
 
     // Enter main loop.
     for (;;)
