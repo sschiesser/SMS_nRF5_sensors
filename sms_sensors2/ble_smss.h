@@ -105,7 +105,7 @@ uint32_t ble_smss_on_button_change(ble_smss_t * p_smss, uint8_t button_state);
 
 uint32_t ble_smss_on_imu_value(ble_smss_t * p_smss, uint8_t imu_value);
 
-uint32_t ble_smss_on_press_value(ble_smss_t * p_smss, uint8_t press_value);
+uint32_t ble_smss_on_press_value(ble_smss_t * p_smss, int32_t * press_value);
 
 #ifdef __cplusplus
 }

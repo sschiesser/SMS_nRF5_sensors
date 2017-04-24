@@ -314,34 +314,47 @@ void ble_smss_init(ble_smss_t * p_smss)
 uint32_t ble_smss_on_button_change(ble_smss_t * p_smss, uint8_t button_state)
 {
 	NRF_LOG_INFO("on button change...\r\n");
-    ble_gatts_hvx_params_t params;
-    uint16_t len = sizeof(button_state);
+	if(p_smss->conn_handle != BLE_CONN_HANDLE_INVALID)
+	{
+		ble_gatts_hvx_params_t hvx_params;
+		uint16_t len = sizeof(button_state);
+		memset(&hvx_params, 0, sizeof(hvx_params));
+		
+		hvx_params.handle = p_smss->button_char_handles.value_handle;
+		hvx_params.type = BLE_GATT_HVX_NOTIFICATION;
+		hvx_params.offset = 0;
+		hvx_params.p_len = &len;
+		hvx_params.p_data = &button_state;
 
-    memset(&params, 0, sizeof(params));
-    params.type = BLE_GATT_HVX_NOTIFICATION;
-    params.handle = p_smss->button_char_handles.value_handle;
-//    params.handle = p_smss->press_char_handles.value_handle;
-    params.p_data = &button_state;
-    params.p_len = &len;
-
-	NRF_LOG_INFO("Sending: 0x%02x to 0x%04x->0x%04x\n", params.p_data[0], p_smss->conn_handle, params.handle);
-    return sd_ble_gatts_hvx(p_smss->conn_handle, &params);
+		NRF_LOG_INFO("Sending: 0x%02x to 0x%04x->0x%04x\r\n",
+					hvx_params.p_data[0],
+					p_smss->conn_handle,
+					hvx_params.handle);
+		
+		return sd_ble_gatts_hvx(p_smss->conn_handle, &hvx_params);
+	}
 }
 
-uint32_t ble_smss_on_press_value(ble_smss_t * p_smss, uint8_t value)
+uint32_t ble_smss_on_press_value(ble_smss_t * p_smss, int32_t * press_value)
 {
 	NRF_LOG_INFO("on press value...\r\n");
-	ble_gatts_hvx_params_t params;
-	uint16_t len = sizeof(value);
-//	uint8_t content = value;
+	if(p_smss->conn_handle != BLE_CONN_HANDLE_INVALID)
+	{
+		ble_gatts_hvx_params_t hvx_params;
+		uint16_t len = sizeof(press_value);
+		memset(&hvx_params, 0, sizeof(hvx_params));
+		
+		hvx_params.handle = p_smss->press_char_handles.value_handle;
+		hvx_params.type = BLE_GATT_HVX_NOTIFICATION;
+		hvx_params.offset = 0;
+		hvx_params.p_len = &len;
+		hvx_params.p_data = (uint8_t*)press_value;
 	
-	memset(&params, 0, sizeof(params));
-	params.type = BLE_GATT_HVX_NOTIFICATION;
-	params.handle = p_smss->press_char_handles.value_handle;
-	params.p_data = &value;
-	params.p_len = &len;
-	
-	NRF_LOG_INFO("Sending: 0x%02x to 0x%04x->0x%04x\n", params.p_data[0], p_smss->conn_handle, params.handle);
-//	return NRF_SUCCESS;
-	return sd_ble_gatts_hvx(p_smss->conn_handle, &params);
+		NRF_LOG_INFO("Sending: 0x%02x to 0x%04x->0x%04x\r\n",
+					hvx_params.p_data[0],
+					p_smss->conn_handle,
+					hvx_params.handle);
+		
+		return sd_ble_gatts_hvx(p_smss->conn_handle, &hvx_params);
+	}
 }

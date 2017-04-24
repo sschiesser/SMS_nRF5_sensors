@@ -522,7 +522,7 @@ static void ble_stack_init(void)
 static void button_event_handler(uint8_t pin_no, uint8_t button_action)
 {
     uint32_t err_code;
-	int integer_value;
+	int32_t integer_value;
 
     switch (pin_no)
     {
@@ -538,20 +538,20 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
             break;
 
 		case SEND_INTEGER_BUTTON_PIN_NR:
-			NRF_LOG_INFO("Send int button pressed\n");
+			NRF_LOG_INFO("Send int button pressed\r\n");
 			if(button_action) {
 				integer_value = 65535;
 			}
 			else {
 				integer_value = -65535;
 			}
-//			err_code = ble_smss_send_integer(&m_smss_service, integer_value);
-//			if(err_code != NRF_SUCCESS &&
-//			   err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
-//			   err_code != NRF_ERROR_INVALID_STATE)
-//			{
-//				APP_ERROR_CHECK(err_code);
-//			}
+			err_code = ble_smss_on_press_value(&m_smss_service, &integer_value);
+			if(err_code != NRF_SUCCESS &&
+			   err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
+			   err_code != NRF_ERROR_INVALID_STATE)
+			{
+				APP_ERROR_CHECK(err_code);
+			}
 			break;
 		
         default:
