@@ -53,9 +53,10 @@ enum ms58_datatype_tag {
 
 typedef struct {
 	bool init_ok; // PROM value have been successfully read
-	bool dev_enabled;
+	bool dev_en;
 //    uint8_t osr;
 }ms58_config_s;
+
 typedef struct {
 	uint16_t prom_values[MS58_PROM_VAL_MAX];
 	uint32_t adc_values[MS58_ADC_VAL_MAX];
@@ -63,6 +64,7 @@ typedef struct {
 	int32_t pressure;
 	int32_t temperature;
 }ms58_output_s;
+
 typedef struct {
 	bool enabled;
 	volatile bool new_value;

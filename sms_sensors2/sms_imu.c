@@ -1,4 +1,5 @@
 #include "sms_imu.h"
+//#include "nrf_drv_delay.h"
 #define NRF_LOG_MODULE_NAME "IMU"
 #include "nrf_log.h"
 
@@ -6,84 +7,117 @@ extern const nrf_drv_twi_t twi_master_instance;
 
 extern volatile bool twi_xfer_done;
 
-struct bno055_config_s bno055_config;
-struct bno055_output_s bno055_output;
-struct bno055_interrupt_s bno055_interrupt;
+bno055_config_s bno055_config;
+bno055_output_s bno055_output;
+bno055_interrupt_s bno055_interrupt;
 
 extern const nrf_drv_timer_t TIMER_DELTA_US;
 
-//void twi_event_handler(nrf_drv_twi_evt_t const * p_event, void * p_context)
-//{
-//	twi_xfer_done = true;
-//	switch(p_event->type)
-//	{
-//		case NRF_DRV_TWI_EVT_DONE:
-//			twi_xfer_done = true;
-//			break;
-//		default:
-//			break;
-//	}	
-//}
+static void writeByte(uint8_t address, uint8_t subAddress, uint8_t data)
+{
+	uint8_t reg[2] = {subAddress, data};
+	twi_xfer_done = false;
+	ret_code_t err_code = nrf_drv_twi_tx(&twi_master_instance, address, reg, sizeof(reg), false);
+	APP_ERROR_CHECK(err_code);
+	while(!twi_xfer_done) {};
+}
 
-void bno055_reset(void)
+static uint8_t readByte(uint8_t address, uint8_t subAddress)
+{
+	uint8_t reg[1] = {subAddress};
+	twi_xfer_done = false;
+	ret_code_t err_code = nrf_drv_twi_tx(&twi_master_instance, address, reg, sizeof(reg), false);
+	APP_ERROR_CHECK(err_code);
+	while(!twi_xfer_done);
+		
+	uint8_t data;
+	twi_xfer_done = false;
+	err_code = nrf_drv_twi_rx(&twi_master_instance, address, &data, sizeof(data));
+	APP_ERROR_CHECK(err_code);
+	while(!twi_xfer_done);
+	
+	return data;
+}
+
+static void readBytes(uint8_t address, uint8_t subAddress, uint8_t count, uint8_t *dest)
+{
+	uint8_t reg[1] = {subAddress};
+	twi_xfer_done = false;
+	ret_code_t err_code = nrf_drv_twi_tx(&twi_master_instance, address, reg, sizeof(reg), false);
+	APP_ERROR_CHECK(err_code);
+	while(!twi_xfer_done);
+	
+	twi_xfer_done = false;
+	err_code = nrf_drv_twi_rx(&twi_master_instance, address, dest, count);
+	APP_ERROR_CHECK(err_code);
+	while(!twi_xfer_done);
+}
+
+static void bno055_reset(void)
 {
 	writeByte(BNO055_ADDRESS, BNO055_SYS_TRIGGER, 0x20);
+	nrf_delay_ms(500);
 }
 
 
-int bno055_check(void)
+static uint8_t bno055_check(void)
 {
 	int ret = 0x0F;
 	uint8_t c = readByte(BNO055_ADDRESS, BNO055_CHIP_ID);
-	NRF_LOG_INFO("Device returned 0x%02x\n", c);
+	NRF_LOG_INFO("Device returned 0x%02x\r\n", c);
 	if(c == 0xA0) ret = 0x07;
 	nrf_delay_ms(500);
 	c = readByte(BNO055_ADDRESS, BNO055_ACC_ID);
-	NRF_LOG_INFO("Accelerometer returned 0x%02x\n", c);
+	NRF_LOG_INFO("Accelerometer returned 0x%02x\r\n", c);
 	if(c == 0xFB) ret = 0x03;
 	nrf_delay_ms(500);
 	c = readByte(BNO055_ADDRESS, BNO055_MAG_ID);
-	NRF_LOG_INFO("Magnetometer returned 0x%02x\n", c);
+	NRF_LOG_INFO("Magnetometer returned 0x%02x\r\n", c);
 	if(c == 0x32) ret = 0x01;
 	nrf_delay_ms(500);
 	c = readByte(BNO055_ADDRESS, BNO055_GYRO_ID);
-	NRF_LOG_INFO("Gyroscope returned 0x%02x\n", c);
+	NRF_LOG_INFO("Gyroscope returned 0x%02x\r\n", c);
 	if(c == 0x0F) ret = 0;
+	nrf_delay_ms(500);
 	
 	return ret;
 }
 
-int bno055_test(void)
+
+
+static int bno055_test(void)
 {
 	// Check software revision ID
 	uint8_t swlsb = readByte(BNO055_ADDRESS, BNO055_SW_REV_ID_LSB);
 	uint8_t swmsb = readByte(BNO055_ADDRESS, BNO055_SW_REV_ID_MSB);
-	NRF_LOG_INFO("Software revision ID: %02x.%02x\n", swmsb, swlsb);
+	NRF_LOG_INFO("Software revision ID: %02x.%02x\r\n", swmsb, swlsb);
 	
 	// Check bootloader version
 	uint8_t blid = readByte(BNO055_ADDRESS, BNO055_BL_REV_ID);
-	NRF_LOG_INFO("Bootloader version: %d\n", blid);
+	NRF_LOG_INFO("Bootloader version: %d\r\n", blid);
 	
 	// Check self-test results
 	uint8_t selftest = readByte(BNO055_ADDRESS, BNO055_ST_RESULT);
 	if(selftest & 0x01) {
-		NRF_LOG_INFO("Accelerometer passed selftest\n");
+		NRF_LOG_INFO("Accelerometer passed selftest\r\n");
 	}
 	if(selftest & 0x02) {
-		NRF_LOG_INFO("Magnetometer passed selftest\n");
+		NRF_LOG_INFO("Magnetometer passed selftest\r\n");
 	}
 	if(selftest & 0x04) {
-		NRF_LOG_INFO("Gyroscope passed selftest\n");
+		NRF_LOG_INFO("Gyroscope passed selftest\r\n");
 	}
 	if(selftest & 0x08) {
-		NRF_LOG_INFO("MCU passed selftest\n");
+		NRF_LOG_INFO("MCU passed selftest\r\n");
 	}
+	
+	nrf_delay_ms(1000);
 }
 
 
 
 
-void bno055_init_config_values(void)
+static void bno055_init_config_values(void)
 {
 	bno055_config.g_pwr_mode = NormalG;	// Gyro power mode
 	bno055_config.g_scale = GFS_250DPS;	// Gyro full scale
@@ -96,10 +130,10 @@ void bno055_init_config_values(void)
 	bno055_config.m_odr = MODR_30Hz;	// Select magnetometer ODR when in BNO055 bypass mode
 	bno055_config.pwr_mode = Normalpwr;	// Select BNO055 power mode
 	bno055_config.opr_mode = NDOF;		// specify operation mode for sensors
-	NRF_LOG_INFO("BNO055 config values initialized\n");
+	NRF_LOG_INFO("BNO055 config values initialized\r\n");
 }
 
-void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
+static void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
 {
 	uint8_t data[6]; // data array to hold accelerometer and gyro x, y, z, data
 	uint16_t ii = 0, sample_count = 0;
@@ -199,10 +233,12 @@ void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
 //						(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Y_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Y_LSB)),\
 //						(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Z_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Z_LSB)));
 
-	NRF_LOG_INFO("Accel/Gyro Calibration done!\n");
+	nrf_delay_ms(1000);
+	
+	NRF_LOG_INFO("Accel/Gyro Calibration done!\r\n");
 }
 
-void bno055_calibrate_mag(float *dest1)
+static void bno055_calibrate_mag(float *dest1)
 {
 	uint8_t data[6]; // data array to hold mag x, y, z, data
 	uint16_t ii = 0, sample_count = 0;
@@ -239,9 +275,9 @@ void bno055_calibrate_mag(float *dest1)
 		nrf_delay_ms(105);  // at 10 Hz ODR, new mag data is available every 100 ms
 	}
 
-	NRF_LOG_INFO("mag x min/max: %d, %d\n", mag_min[0], mag_max[0]);
-	NRF_LOG_INFO("mag y min/max: %d, %d\n", mag_min[1], mag_max[1]);
-	NRF_LOG_INFO("mag z min/max: %d, %d\n", mag_min[2], mag_max[2]);
+	NRF_LOG_INFO("mag x min/max: %d, %d\r\n", mag_min[0], mag_max[0]);
+	NRF_LOG_INFO("mag y min/max: %d, %d\r\n", mag_min[1], mag_max[1]);
+	NRF_LOG_INFO("mag z min/max: %d, %d\r\n", mag_min[2], mag_max[2]);
 
 	mag_bias[0]  = (mag_max[0] + mag_min[0])/2;  // get average x mag bias in counts
 	mag_bias[1]  = (mag_max[1] + mag_min[1])/2;  // get average y mag bias in counts
@@ -274,11 +310,167 @@ void bno055_calibrate_mag(float *dest1)
 	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, bno055_config.opr_mode);
 	nrf_delay_ms(25);
 
-	NRF_LOG_INFO("Mag Calibration done!");
+	nrf_delay_ms(1000);
+	
+	NRF_LOG_INFO("Mag Calibration done!\r\n");
 }
 
 
-void bno055_initialize(void)
+
+// Read accel data
+static void read_accel_data(int16_t *destination)
+{
+	// x/y/z accel register data stored here
+	uint8_t rawData[6];
+	// Read the six raw data registers into data array
+	readBytes(BNO055_ADDRESS, BNO055_ACC_DATA_X_LSB, 6, &rawData[0]);
+	// Turn the MSB and LSB into a signed 16-bit value
+	destination[0] = ((int16_t)rawData[1] << 8) | rawData[0];      
+	destination[1] = ((int16_t)rawData[3] << 8) | rawData[2];  
+	destination[2] = ((int16_t)rawData[5] << 8) | rawData[4]; 
+}
+// Read gyro data
+static void read_gyro_data(int16_t *destination)
+{
+	// x/y/z gyro register data stored here
+	uint8_t rawData[6];
+	// Read the six raw data registers sequentially into data array
+	readBytes(BNO055_ADDRESS, BNO055_GYR_DATA_X_LSB, 6, &rawData[0]);
+	// Turn the MSB and LSB into a signed 16-bit value
+	destination[0] = ((int16_t)rawData[1] << 8) | rawData[0];
+	destination[1] = ((int16_t)rawData[3] << 8) | rawData[2];  
+	destination[2] = ((int16_t)rawData[5] << 8) | rawData[4]; 
+}
+// Read temperature data
+static int16_t read_gyrotemp_data(void)
+{
+  return readByte(BNO055_ADDRESS, BNO055_TEMP);  // Read the two raw data registers sequentially into data array 
+}
+
+// Read magnetometer data
+static void read_mag_data(int16_t *destination)
+{
+	// x/y/z gyro register data stored here
+	uint8_t rawData[6];
+	// Read the six raw data registers sequentially into data array
+	readBytes(BNO055_ADDRESS, BNO055_MAG_DATA_X_LSB, 6, &rawData[0]);
+	// Turn the MSB and LSB into a signed 16-bit value
+	destination[0] = ((int16_t)rawData[1] << 8) | rawData[0];
+	destination[1] = ((int16_t)rawData[3] << 8) | rawData[2];
+	destination[2] = ((int16_t)rawData[5] << 8) | rawData[4];
+}
+
+// Read quaternion data
+static void read_quat_data(int16_t * destination)
+{
+	// x/y/z gyro register data stored here
+	uint8_t rawData[8];
+	// Read the six raw data registers sequentially into data array
+	readBytes(BNO055_ADDRESS, BNO055_QUA_DATA_W_LSB, 8, &rawData[0]);
+	// Turn the MSB and LSB into a signed 16-bit value
+	destination[0] = ((int16_t)rawData[1] << 8) | rawData[0];
+	destination[1] = ((int16_t)rawData[3] << 8) | rawData[2];
+	destination[2] = ((int16_t)rawData[5] << 8) | rawData[4];
+	destination[3] = ((int16_t)rawData[7] << 8) | rawData[6];
+}
+
+// Read Euler angle data
+static void read_euler_data(int16_t * destination)
+{
+	// x/y/z gyro register data stored here
+	uint8_t rawData[6];
+	// Read the six raw data registers sequentially into data array
+	readBytes(BNO055_ADDRESS, BNO055_EUL_HEADING_LSB, 6, &rawData[0]);
+	// Turn the MSB and LSB into a signed 16-bit value
+	destination[0] = ((int16_t)rawData[1] << 8) | rawData[0];
+	destination[1] = ((int16_t)rawData[3] << 8) | rawData[2];
+	destination[2] = ((int16_t)rawData[5] << 8) | rawData[4];
+}
+
+// Read linear acceleration data
+static void read_lia_data(int16_t * destination)
+{
+	// x/y/z gyro register data stored here
+	uint8_t rawData[6];
+	// Read the six raw data registers sequentially into data array
+	readBytes(BNO055_ADDRESS, BNO055_LIA_DATA_X_LSB, 6, &rawData[0]);
+	// Turn the MSB and LSB into a signed 16-bit value
+	destination[0] = ((int16_t)rawData[1] << 8) | rawData[0];
+	destination[1] = ((int16_t)rawData[3] << 8) | rawData[2];
+	destination[2] = ((int16_t)rawData[5] << 8) | rawData[4];
+}
+
+// Read gravity vector
+static void read_grv_data(int16_t * destination)
+{
+	// x/y/z gyro register data stored here
+	uint8_t rawData[6];
+	// Read the six raw data registers sequentially into data array
+	readBytes(BNO055_ADDRESS, BNO055_GRV_DATA_X_LSB, 6, &rawData[0]);
+	// Turn the MSB and LSB into a signed 16-bit value
+	destination[0] = ((int16_t)rawData[1] << 8) | rawData[0];
+	destination[1] = ((int16_t)rawData[3] << 8) | rawData[2];
+	destination[2] = ((int16_t)rawData[5] << 8) | rawData[4];
+}
+
+
+
+
+void imu_startup(void)
+{
+	// Initialize all bno055 struct values
+	bno055_config.init_ok = true;
+	bno055_config.dev_en = false;
+	bno055_config.comp_mask = 0x0F;
+	for(uint8_t i = 0; i < 3; i++) {
+		bno055_config.gyro_bias[i] = 0;
+		bno055_config.accel_bias[i] = 0;
+		bno055_config.mag_bias[i] = 0;
+		bno055_output.accel[i].val = 0;
+		bno055_output.gyro[i].val = 0;
+		bno055_output.mag[i].val = 0;
+		bno055_output.lia[i].val = 0;
+		bno055_output.grv[i].val = 0;
+	}
+	for(uint8_t i = 0; i < 4; i++) {
+		bno055_output.quat[i].val = 0;
+	}
+	bno055_output.temp.val = 0;
+	bno055_output.yaw.val = 0;
+	bno055_output.roll.val = 0;
+	bno055_output.pitch.val = 0;
+	bno055_output.ts_us = 0;
+	
+	// Reset device & check which component is present
+	bno055_reset();
+	bno055_config.comp_mask = bno055_check();
+	if(bno055_config.comp_mask == 0x0F) {
+		bno055_config.init_ok = false;
+		bno055_config.dev_en = false;
+	}
+	else {
+		bno055_config.init_ok = true;
+		bno055_config.dev_en = true;
+	}
+}
+
+
+void imu_configure(void)
+{
+	bno055_test();
+	bno055_init_config_values();
+//	bno055_calibrate_accel_gyro(bno055_config.accel_bias,
+//								bno055_config.gyro_bias);
+//	bno055_calibrate_mag(bno055_config.mag_bias);
+}
+
+
+void imu_check_cal(void)
+{
+	bno055_config.cal_state = readByte(BNO055_ADDRESS, BNO055_CALIB_STAT);
+}
+
+void imu_initialize(void)
 {
 	// Select BNO055 config mode
 	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, CONFIGMODE );
@@ -329,7 +521,7 @@ void bno055_int_reset(void)
 }
 
 
-void bno055_poll_data(void)
+void imu_poll_data(void)
 {
 	// read raw data storage
 	int16_t data3[3], data4[4];
@@ -441,161 +633,3 @@ void bno055_poll_data(void)
 }
 
 
-// Read accel data
-void read_accel_data(int16_t *destination)
-{
-	// x/y/z accel register data stored here
-	uint8_t rawData[6];
-	// Read the six raw data registers into data array
-	readBytes(BNO055_ADDRESS, BNO055_ACC_DATA_X_LSB, 6, &rawData[0]);
-	// Turn the MSB and LSB into a signed 16-bit value
-	destination[0] = ((int16_t)rawData[1] << 8) | rawData[0];      
-	destination[1] = ((int16_t)rawData[3] << 8) | rawData[2];  
-	destination[2] = ((int16_t)rawData[5] << 8) | rawData[4]; 
-}
-// Read gyro data
-void read_gyro_data(int16_t *destination)
-{
-	// x/y/z gyro register data stored here
-	uint8_t rawData[6];
-	// Read the six raw data registers sequentially into data array
-	readBytes(BNO055_ADDRESS, BNO055_GYR_DATA_X_LSB, 6, &rawData[0]);
-	// Turn the MSB and LSB into a signed 16-bit value
-	destination[0] = ((int16_t)rawData[1] << 8) | rawData[0];
-	destination[1] = ((int16_t)rawData[3] << 8) | rawData[2];  
-	destination[2] = ((int16_t)rawData[5] << 8) | rawData[4]; 
-}
-// Read temperature data
-int16_t read_gyrotemp_data(void)
-{
-  return readByte(BNO055_ADDRESS, BNO055_TEMP);  // Read the two raw data registers sequentially into data array 
-}
-
-// Read magnetometer data
-void read_mag_data(int16_t *destination)
-{
-	// x/y/z gyro register data stored here
-	uint8_t rawData[6];
-	// Read the six raw data registers sequentially into data array
-	readBytes(BNO055_ADDRESS, BNO055_MAG_DATA_X_LSB, 6, &rawData[0]);
-	// Turn the MSB and LSB into a signed 16-bit value
-	destination[0] = ((int16_t)rawData[1] << 8) | rawData[0];
-	destination[1] = ((int16_t)rawData[3] << 8) | rawData[2];
-	destination[2] = ((int16_t)rawData[5] << 8) | rawData[4];
-}
-
-// Read quaternion data
-void read_quat_data(int16_t * destination)
-{
-	// x/y/z gyro register data stored here
-	uint8_t rawData[8];
-	// Read the six raw data registers sequentially into data array
-	readBytes(BNO055_ADDRESS, BNO055_QUA_DATA_W_LSB, 8, &rawData[0]);
-	// Turn the MSB and LSB into a signed 16-bit value
-	destination[0] = ((int16_t)rawData[1] << 8) | rawData[0];
-	destination[1] = ((int16_t)rawData[3] << 8) | rawData[2];
-	destination[2] = ((int16_t)rawData[5] << 8) | rawData[4];
-	destination[3] = ((int16_t)rawData[7] << 8) | rawData[6];
-}
-
-// Read Euler angle data
-void read_euler_data(int16_t * destination)
-{
-	// x/y/z gyro register data stored here
-	uint8_t rawData[6];
-	// Read the six raw data registers sequentially into data array
-	readBytes(BNO055_ADDRESS, BNO055_EUL_HEADING_LSB, 6, &rawData[0]);
-	// Turn the MSB and LSB into a signed 16-bit value
-	destination[0] = ((int16_t)rawData[1] << 8) | rawData[0];
-	destination[1] = ((int16_t)rawData[3] << 8) | rawData[2];
-	destination[2] = ((int16_t)rawData[5] << 8) | rawData[4];
-}
-
-// Read linear acceleration data
-void read_lia_data(int16_t * destination)
-{
-	// x/y/z gyro register data stored here
-	uint8_t rawData[6];
-	// Read the six raw data registers sequentially into data array
-	readBytes(BNO055_ADDRESS, BNO055_LIA_DATA_X_LSB, 6, &rawData[0]);
-	// Turn the MSB and LSB into a signed 16-bit value
-	destination[0] = ((int16_t)rawData[1] << 8) | rawData[0];
-	destination[1] = ((int16_t)rawData[3] << 8) | rawData[2];
-	destination[2] = ((int16_t)rawData[5] << 8) | rawData[4];
-}
-
-// Read gravity vector
-void read_grv_data(int16_t * destination)
-{
-	// x/y/z gyro register data stored here
-	uint8_t rawData[6];
-	// Read the six raw data registers sequentially into data array
-	readBytes(BNO055_ADDRESS, BNO055_GRV_DATA_X_LSB, 6, &rawData[0]);
-	// Turn the MSB and LSB into a signed 16-bit value
-	destination[0] = ((int16_t)rawData[1] << 8) | rawData[0];
-	destination[1] = ((int16_t)rawData[3] << 8) | rawData[2];
-	destination[2] = ((int16_t)rawData[5] << 8) | rawData[4];
-}
-
-
-
-
-/**@brief Function for initializing the TWI module.
- */
-//void twi_init(void)
-//{
-//	ret_code_t err_code;
-//	const nrf_drv_twi_config_t twi_config = {
-//		.scl				= TWI_SCL_PIN,
-//		.sda				= TWI_SDA_PIN,
-////		.frequency			= NRF_TWI_FREQ_100K,
-//		.frequency			= NRF_TWI_FREQ_400K,
-//		.interrupt_priority = APP_IRQ_PRIORITY_HIGH,
-//		.clear_bus_init		= false
-//		};
-//	
-//		err_code = nrf_drv_twi_init(&twi_master_instance, &twi_config, twi_event_handler, NULL);
-//		APP_ERROR_CHECK(err_code);
-//		
-//		nrf_drv_twi_enable(&twi_master_instance);
-//}
-
-void writeByte(uint8_t address, uint8_t subAddress, uint8_t data)
-{
-	uint8_t reg[2] = {subAddress, data};
-	twi_xfer_done = false;
-	ret_code_t err_code = nrf_drv_twi_tx(&twi_master_instance, address, reg, sizeof(reg), false);
-	APP_ERROR_CHECK(err_code);
-	while(!twi_xfer_done) {};
-}
-
-uint8_t readByte(uint8_t address, uint8_t subAddress)
-{
-	uint8_t reg[1] = {subAddress};
-	twi_xfer_done = false;
-	ret_code_t err_code = nrf_drv_twi_tx(&twi_master_instance, address, reg, sizeof(reg), false);
-	APP_ERROR_CHECK(err_code);
-	while(!twi_xfer_done);
-		
-	uint8_t data;
-	twi_xfer_done = false;
-	err_code = nrf_drv_twi_rx(&twi_master_instance, address, &data, sizeof(data));
-	APP_ERROR_CHECK(err_code);
-	while(!twi_xfer_done);
-	
-	return data;
-}
-
-void readBytes(uint8_t address, uint8_t subAddress, uint8_t count, uint8_t *dest)
-{
-	uint8_t reg[1] = {subAddress};
-	twi_xfer_done = false;
-	ret_code_t err_code = nrf_drv_twi_tx(&twi_master_instance, address, reg, sizeof(reg), false);
-	APP_ERROR_CHECK(err_code);
-	while(!twi_xfer_done);
-	
-	twi_xfer_done = false;
-	err_code = nrf_drv_twi_rx(&twi_master_instance, address, dest, count);
-	APP_ERROR_CHECK(err_code);
-	while(!twi_xfer_done);
-}

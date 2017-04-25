@@ -244,7 +244,7 @@ typedef union float2bytes{
 	uint8_t b[4];
 } f2b_t;
 
-struct bno055_config_s {
+typedef struct {
 	enum Ascale a_scale;
 	enum Abw a_bw;
 	enum APwrMode a_pwr_mode;
@@ -265,8 +265,13 @@ struct bno055_config_s {
 	float mag_bias[3];
 	//	float mag_calibration[3];
 	//	bool ahrs;
-};
-struct bno055_output_s {
+	uint8_t cal_state;
+	bool init_ok;
+	bool dev_en;
+	uint8_t comp_mask;
+}bno055_config_s;
+
+typedef struct {
 	f2b_t accel[3];
 	f2b_t gyro[3];
 	f2b_t mag[3];
@@ -300,12 +305,13 @@ struct bno055_output_s {
 //	uint8_t pitch_i[4];
 //	uint8_t lia_i[3][4];
 //	uint8_t grv_i[3][4]
-};
-struct bno055_interrupt_s {
+}bno055_output_s;
+
+typedef struct {
 	bool enabled;
-	volatile bool new_int;
+	volatile bool new_value;
 	volatile bool rts;
-};
+}bno055_interrupt_s;
 
 
 

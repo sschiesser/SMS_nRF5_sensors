@@ -86,11 +86,11 @@ static void ms58_read_prom(void)
 }
 
 
-void ms58_startup(void)
+void pressure_startup(void)
 {
 	// Initialize all ms58 struct values
 	ms58_config.init_ok = true;
-	ms58_config.dev_enabled = false;
+	ms58_config.dev_en = false;
 	ms58_output.complete = false;
 	ms58_output.pressure = 0;
 	ms58_output.temperature = 0;
@@ -116,5 +116,109 @@ void ms58_startup(void)
 		}
 	}
 	
-	ms58_config.dev_enabled = ms58_config.init_ok;
+	ms58_config.dev_en = ms58_config.init_ok;
+}
+
+void pressure_read_data(void)
+{
+	uint8_t tx_len = 4;
+	uint8_t rx_len = 4;
+	
+	memset(m_rx_buf, 0, rx_len);
+	m_tx_buf[0] = MS58_ADC_READ;
+	m_tx_buf[1] = MS58_ADC_READ;
+	m_tx_buf[2] = MS58_ADC_READ;
+	m_tx_buf[3] = MS58_ADC_READ;
+	spi_xfer_done = false;
+	APP_ERROR_CHECK(nrf_drv_spi_transfer(&spi_master_instance,
+					m_tx_buf, tx_len,
+					m_rx_buf, rx_len));
+	while(!spi_xfer_done) {};
+
+	if(ms58_output.complete) {
+		ms58_output.adc_values[MS58_TYPE_PRESS] = \
+				((m_rx_buf[1] << 16) | (m_rx_buf[2] << 8) | (m_rx_buf[3]));
+		m_tx_buf[0] = MS58_CONV_D2_4096;
+	}
+	else {
+		ms58_output.adc_values[MS58_TYPE_TEMP] = \
+				((m_rx_buf[1] << 16) | (m_rx_buf[2] << 8) | (m_rx_buf[3]));
+		m_tx_buf[0] = MS58_CONV_D1_4096;
+	}
+	tx_len = 1;
+	rx_len = 0;
+	spi_xfer_done = false;
+	APP_ERROR_CHECK(nrf_drv_spi_transfer(&spi_master_instance,
+					m_tx_buf, tx_len,
+					m_rx_buf, rx_len));
+	while(!spi_xfer_done) {};
+}
+
+
+void pressure_calculate(void)
+{
+    /***************************************************************************
+    * Calculated values...
+    * Note: - ms58_prom_values[] are uint16_t
+    *       - ms58_adc_values[] are uint32_t
+    * Typical values given on the MS5003-01BA datasheets (March 25, 2013) are:
+    * -------------------------------------------------------------------------
+    * ms58_prom_values[]          |   ms58_adc_values[]
+    * - C1 = 40'127 (SENSt1)      |   - D1 = 9'085'466 (Digital pressure)
+    * - C2 = 36'924 (OFFt1)       |   - D2 = 8'569'150 (Digital temperature)
+    * - C3 = 23'317 (TCS)         |
+    * - C4 = 23'282 (TCO)         |
+    * - C5 = 33'464 (Tref)        |
+    * - C6 = 28'312 (TEMPSENS)    |
+    **************************************************************************/
+    int32_t deltaT;
+    int64_t offset, sensitivity, tv1, tv2, tv3;
+
+    /***************************
+    * Temperature calculation *
+    ***************************/
+    /* dT = D2 - Tref = D2 - C5*2^8 */
+    /* tv1: 33464 * 2^8 = 8566784 */
+    tv1 = ((int64_t)(ms58_output.prom_values[5]) << 8);
+    /* deltaT: 8569150 - 8566784 = 2366 */
+    deltaT = (int32_t)((int64_t)ms58_output.adc_values[MS58_TYPE_TEMP] - tv1);
+
+    /* TEMP = 20°C + dT*TEMPSENS = 2000 + dT * C6/2^23 */
+    /* tv1: 28312 * 2366 = 66986192 */
+    tv1 = ((int64_t)ms58_output.prom_values[6] * (int64_t)deltaT);
+    /* tv2: 66986192 / 2^23 = 7(.985376358) */
+    tv2 = (tv1 >> 23);
+    /* temp: 7 + 2000 = 2007 */
+    ms58_output.temperature = (int32_t)(tv2 + 2000);
+
+    /************************
+    * Pressure calculation *
+    ************************/
+    /* OFF = OFFt1 + TCO*dT = C2*2^16 + (C4*dT)/2^7 */
+    /* tv1: 36924 * 2^16 = 2419851264 */
+    tv1 = ((int64_t)(ms58_output.prom_values[2]) << 16);
+    /* tv2: 23282 * 2366 = 55085212 */
+    tv2 = ((int64_t)ms58_output.prom_values[4] * (int64_t)deltaT);
+    /* tv3: 55085212 / 2^7 = 430353(.21875) */
+    tv3 = (tv2 >> 7);
+    /* offset: 2419851264 + 430353 = 2420281617 */
+    offset = (tv1 + tv3);
+
+    /* SENS = SENSt1 + TCS*dT = C1*2^15 + (C3*dT)/2^8 */
+    /* tv1: 40127 * 2^15 = 1314881536 */
+    tv1 = ((int64_t)(ms58_output.prom_values[1]) << 15);
+    /* tv2: 23317 * 2366 = 55168022 */
+    tv2 = ((int64_t)ms58_output.prom_values[3] * (int64_t)deltaT);
+    /* tv3: 55168022 / 2^8 = 215500(.0859375) */
+    tv3 = (tv2 >> 8);
+    /* sensitivity: 1314881536 + 215500 = 1315097036 */
+    sensitivity = (tv1 + tv3);
+
+    /* P = D1*SENS - OFF = (D1*SENS/2^21 - OFF)/2^15 */
+    /* tv1: (9085466 * 1315097036) / 2^21 = 5697378829(.612148284) */
+    tv1 = (((int64_t)ms58_output.adc_values[MS58_TYPE_PRESS] * sensitivity) >> 21);
+    /* tv2: 5697378829 - 2420281617 = 3277097212 */
+    tv2 = tv1 - offset;
+    /* press: 3277097212 / 2^15 = 100009(.070190) */
+    ms58_output.pressure = (int32_t)(tv2 >> 15);
 }

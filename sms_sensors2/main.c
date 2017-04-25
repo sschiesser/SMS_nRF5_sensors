@@ -59,8 +59,8 @@
 
 #define LEDBUTTON_LED_PIN               BSP_BOARD_LED_2                             /**< LED to be toggled with the help of the LED Button Service. */
 #define LEDBUTTON_LED1_PIN_NO			BSP_BOARD_LED_3
-#define LEDBUTTON_BUTTON_PIN            BSP_BUTTON_0                                /**< Button that will trigger the notification event with the LED Button Service */
-#define SEND_INTEGER_BUTTON_PIN_NR		BSP_BUTTON_1
+#define LEDBUTTON_BUTTON1_PIN           BSP_BUTTON_0                                /**< Button that will trigger the notification event with the LED Button Service */
+#define LEDBUTTON_BUTTON2_PIN			BSP_BUTTON_1
 
 #define DEVICE_NAME                     "SABRE_SMS"                             /**< Name of device. Will be included in the advertising data. */
 //#define DEVICE_NAME                     "Nordic_Blinky"                             /**< Name of device. Will be included in the advertising data. */
@@ -81,7 +81,7 @@
 #define MAX_CONN_PARAMS_UPDATE_COUNT    3                                           /**< Number of attempts before giving up the connection parameter negotiation. */
 
 #define APP_GPIOTE_MAX_USERS            1                                           /**< Maximum number of users of the GPIOTE handler. */
-#define BUTTON_DETECTION_DELAY          APP_TIMER_TICKS(50, APP_TIMER_PRESCALER)    /**< Delay from a GPIOTE event until a button is reported as pushed (in number of timer ticks). */
+#define BUTTON_DETECTION_DELAY          APP_TIMER_TICKS(5, APP_TIMER_PRESCALER)    /**< Delay from a GPIOTE event until a button is reported as pushed (in number of timer ticks). */
 
 #define DEAD_BEEF                       0xDEADBEEF                                  /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
@@ -121,6 +121,12 @@ volatile bool twi_xfer_done;
 // Pressure
 extern ms58_output_s ms58_output;
 extern ms58_config_s ms58_config;
+extern ms58_interrupt_s ms58_interrupt;
+
+// IMU
+extern bno055_output_s bno055_output;
+extern bno055_config_s bno055_config;
+extern bno055_interrupt_s bno055_interrupt;
 
 /* ====================================================================
  * FUNCTIONS DECLARATIONS
@@ -128,6 +134,7 @@ extern ms58_config_s ms58_config;
  *
  * ==================================================================== */
 void advertising_start(void);
+void timers_start(void);
 
 
 /**@brief Function for assert macro callback.
@@ -154,12 +161,12 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
 // Timer interrupts
 static void pressure_poll_int_handler(void * p_context)
 {
-//	pressure_poll_int_done = true;
+	ms58_interrupt.new_value = true;
 }
 
 static void imu_poll_int_handler(void * p_context)
 {
-//	bno055_interrupt.new_int = true;
+	bno055_interrupt.new_value = true;
 }
 
 static void timer_delta_us_handler(nrf_timer_event_t event_type, void * p_context)
@@ -178,13 +185,18 @@ static void timer_delta_us_handler(nrf_timer_event_t event_type, void * p_contex
 static void button_event_handler(uint8_t pin_no, uint8_t button_action)
 {
     uint32_t err_code;
-	int32_t integer_value;
+	static uint16_t send_value = 0;
 
     switch (pin_no)
     {
-        case LEDBUTTON_BUTTON_PIN:
-            NRF_LOG_INFO("Send button state change.\r\n");            
-            err_code = ble_smss_on_button_change(&m_smss_service, button_action);
+        case LEDBUTTON_BUTTON1_PIN:
+			if(button_action) send_value |= 0xFF;
+			else send_value &= 0xFF00;
+            NRF_LOG_INFO("Bt1... sending %#x\r\n", send_value);
+//			int32_t * tosend1;
+//			tosend1 = &ms58_output.pressure;
+//			err_code = ble_smss_on_press_value(&m_smss_service, tosend1);
+            err_code = ble_smss_on_button_change(&m_smss_service, send_value);
             if (err_code != NRF_SUCCESS &&
                 err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
                 err_code != NRF_ERROR_INVALID_STATE)
@@ -193,15 +205,14 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
             }
             break;
 
-		case SEND_INTEGER_BUTTON_PIN_NR:
-			NRF_LOG_INFO("Send int button pressed\r\n");
-			if(button_action) {
-				integer_value = 65535;
-			}
-			else {
-				integer_value = -65535;
-			}
-			err_code = ble_smss_on_press_value(&m_smss_service, &integer_value);
+		case LEDBUTTON_BUTTON2_PIN:
+			if(button_action) send_value |= 0xFF00;
+			else send_value &= 0x00FF;
+			NRF_LOG_INFO("Bt2... sending %#x\r\n", send_value);
+//			uint32_t * tosend2;
+//			tosend2 = (uint32_t*)&bno055_output.grv[0].b;
+//			err_code = ble_smss_on_imu_value(&m_smss_service, tosend2);
+			err_code = ble_smss_on_button_change(&m_smss_service, send_value);
 			if(err_code != NRF_SUCCESS &&
 			   err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
 			   err_code != NRF_ERROR_INVALID_STATE)
@@ -307,6 +318,9 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 
             err_code = app_button_enable();
             APP_ERROR_CHECK(err_code);
+			
+			timers_start();
+		
             break; // BLE_GAP_EVT_CONNECTED
 
         case BLE_GAP_EVT_DISCONNECTED:
@@ -436,8 +450,8 @@ static void buttons_init(void)
     //The array must be static because a pointer to it will be saved in the button handler module.
     static app_button_cfg_t buttons[] =
     {
-        {LEDBUTTON_BUTTON_PIN, false, BUTTON_PULL, button_event_handler},
-		{SEND_INTEGER_BUTTON_PIN_NR, false, BUTTON_PULL, button_event_handler}
+        {LEDBUTTON_BUTTON1_PIN, false, BUTTON_PULL, button_event_handler},
+		{LEDBUTTON_BUTTON2_PIN, false, BUTTON_PULL, button_event_handler}
     };
 
     err_code = app_button_init(buttons, sizeof(buttons) / sizeof(buttons[0]),
@@ -699,10 +713,14 @@ void advertising_start(void)
 static void timers_create(void)
 {
 	uint32_t err_code;
-	err_code = app_timer_create(&pressure_poll_int_id, APP_TIMER_MODE_REPEATED, pressure_poll_int_handler);
+	err_code = app_timer_create(&pressure_poll_int_id,
+								APP_TIMER_MODE_REPEATED,
+								pressure_poll_int_handler);
 	APP_ERROR_CHECK(err_code);
 
-	err_code = app_timer_create(&imu_poll_int_id, APP_TIMER_MODE_REPEATED, imu_poll_int_handler);
+	err_code = app_timer_create(&imu_poll_int_id,
+								APP_TIMER_MODE_REPEATED,
+								imu_poll_int_handler);
 	APP_ERROR_CHECK(err_code);
 }
 
@@ -716,6 +734,17 @@ static void power_manage(void)
     APP_ERROR_CHECK(err_code);
 }
 
+
+void timers_start(void)
+{
+	NRF_LOG_INFO("Starting poll timers...\n\r");
+	app_timer_start(pressure_poll_int_id,
+					APP_TIMER_TICKS(MSEC_TO_UNITS(500, UNIT_1_00_MS), 0),
+					NULL);
+	app_timer_start(imu_poll_int_id,
+					APP_TIMER_TICKS(MSEC_TO_UNITS(300, UNIT_1_00_MS), 0),
+					NULL);
+}
 
 /* ====================================================================
  * MAIN
@@ -745,8 +774,25 @@ int main(void)
 	timers_create();
 	
 	// Initialize & configure peripherals
-	ms58_startup();
-	NRF_LOG_INFO("MS58 enabled? %d\r\n", ms58_config.dev_enabled);
+	pressure_startup();
+	NRF_LOG_INFO("MS58 enabled? %d\r\n\n", ms58_config.dev_en);
+	
+	imu_startup();
+	NRF_LOG_INFO("BNO055 enabled? %d\r\n\n", bno055_config.dev_en);
+	if(bno055_config.dev_en) {
+		imu_configure();
+		imu_check_cal();
+		NRF_LOG_INFO("System calibration: %d\n\r",
+					((0xC0 & bno055_config.cal_state) >> 6));
+		NRF_LOG_INFO("Gyro   calibration: %d\n\r",
+					((0x30 & bno055_config.cal_state) >> 4));
+		NRF_LOG_INFO("Accel  calibration: %d\n\r",
+					((0x0C & bno055_config.cal_state) >> 2));
+		NRF_LOG_INFO("Mag    calibration: %d\n\r",
+					((0x03 & bno055_config.cal_state) >> 0));
+		imu_initialize();
+	}
+	
 	
 	// Start advertising
     NRF_LOG_INFO("Starting SMS sensors!\r\n");
@@ -761,6 +807,50 @@ int main(void)
         {
             power_manage();
         }
+		
+		if(ms58_interrupt.new_value)
+		{
+			ms58_interrupt.new_value = false;
+			pressure_read_data();
+			if(ms58_output.complete) {
+				ms58_output.complete = false;
+				pressure_calculate();
+				NRF_LOG_INFO("Press/Temp: %#x/%#x\n\r",
+								ms58_output.pressure,
+								ms58_output.temperature);
+				ms58_interrupt.rts = true;
+			}
+			else {
+				ms58_output.complete = true;
+			}
+		}
+		
+		if(bno055_interrupt.new_value) {
+			bno055_interrupt.new_value = false;
+			imu_poll_data();
+			NRF_LOG_INFO("Grv: %d %d %d\n\r",
+						(int32_t)(bno055_output.grv[0].val * 1000000),
+						(int32_t)(bno055_output.grv[1].val * 1000000),
+						(int32_t)(bno055_output.grv[2].val * 1000000));
+			bno055_interrupt.rts = true;
+		}
+		
+		if(ms58_interrupt.rts) {
+			ms58_interrupt.rts = false;
+			int32_t * tosend;
+			tosend = &ms58_output.pressure;
+			err_code = ble_smss_on_press_value(&m_smss_service, tosend);
+			NRF_LOG_INFO("Returned %#x!\r\n", err_code);
+//			APP_ERROR_CHECK(err_code);
+		}
+		if(bno055_interrupt.rts) {
+			bno055_interrupt.rts = false;
+			uint32_t * tosend;
+			tosend = (uint32_t*)&bno055_output.grv[0].b;
+			err_code = ble_smss_on_imu_value(&m_smss_service, tosend);
+			NRF_LOG_INFO("Returned %#x!\r\n", err_code);
+//			APP_ERROR_CHECK(err_code);
+		}
     }
 }
 

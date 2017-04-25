@@ -74,7 +74,8 @@ void ble_smss_on_ble_evt(ble_smss_t * p_smss, ble_evt_t * p_ble_evt)
 
 static uint32_t press_char_add(ble_smss_t * p_smss)
 {
-    uint32_t   err_code = 0; // Variable to hold return codes from library and softdevice functions
+	// Variable to hold return codes from library and softdevice functions
+    uint32_t   err_code = 0;
     
     // OUR_JOB: Step 2.A, Add a custom characteristic UUID
     ble_uuid_t          char_uuid;
@@ -130,9 +131,10 @@ static uint32_t press_char_add(ble_smss_t * p_smss)
                                        &p_smss->press_char_handles);
     APP_ERROR_CHECK(err_code);
     
-    NRF_LOG_INFO("Service handle: %#x\n\r", p_smss->service_handle);
-    NRF_LOG_INFO("Char value handle: %#x\r\n", p_smss->press_char_handles.value_handle);
-    NRF_LOG_INFO("Char cccd handle: %#x\r\n\r\n", p_smss->press_char_handles.cccd_handle);
+	NRF_LOG_INFO("Pressure characteristic added\n\r");
+    NRF_LOG_INFO("- service handle: %#x\n\r", p_smss->service_handle);
+    NRF_LOG_INFO("- char value handle: %#x\r\n", p_smss->press_char_handles.value_handle);
+    NRF_LOG_INFO("- char cccd handle: %#x\r\n\r\n", p_smss->press_char_handles.cccd_handle);
 
     return NRF_SUCCESS;
 }
@@ -179,9 +181,9 @@ static uint32_t imu_char_add(ble_smss_t * p_smss)
 	attr_char_value.p_attr_md = &attr_md;
 	
 	// Set characteristic length (2.H)
-	attr_char_value.max_len = 2;
-	attr_char_value.init_len = 2;
-	uint8_t value[2] = {0, 0};
+	attr_char_value.max_len = 12;
+	attr_char_value.init_len = 12;
+	uint8_t value[12] = {0};
 	attr_char_value.p_value = value;
 	
 	// Add new characteristic to the service
@@ -191,9 +193,10 @@ static uint32_t imu_char_add(ble_smss_t * p_smss)
 												&p_smss->imu_char_handles);
 	APP_ERROR_CHECK(err_code);
 
-    NRF_LOG_INFO("\r\nService handle: %#x\n\r", p_smss->service_handle);
-    NRF_LOG_INFO("Char value handle: %#x\r\n", p_smss->imu_char_handles.value_handle);
-    NRF_LOG_INFO("Char cccd handle: %#x\r\n\r\n", p_smss->imu_char_handles.cccd_handle);
+	NRF_LOG_INFO("IMU characteristic added\n\r");
+    NRF_LOG_INFO("- service handle: %#x\n\r", p_smss->service_handle);
+    NRF_LOG_INFO("- char value handle: %#x\r\n", p_smss->imu_char_handles.value_handle);
+    NRF_LOG_INFO("- char cccd handle: %#x\r\n\r\n", p_smss->imu_char_handles.cccd_handle);
 	
 	return NRF_SUCCESS;
 }
@@ -251,7 +254,7 @@ static uint32_t button_char_add(ble_smss_t * p_smss)
 	// Set characteristic length (2.H)
 	attr_char_value.max_len = 2;
 	attr_char_value.init_len = 2;
-	uint8_t value[2] = {0, 0};
+	uint8_t value[2] = {0};
 	attr_char_value.p_value = value;
 	
 	// Add new characteristic to the service
@@ -261,9 +264,10 @@ static uint32_t button_char_add(ble_smss_t * p_smss)
 												&p_smss->button_char_handles);
 	APP_ERROR_CHECK(err_code);
 
-    NRF_LOG_INFO("\r\nService handle: %#x\n\r", p_smss->service_handle);
-    NRF_LOG_INFO("Char value handle: %#x\r\n", p_smss->button_char_handles.value_handle);
-    NRF_LOG_INFO("Char cccd handle: %#x\r\n\r\n", p_smss->button_char_handles.cccd_handle);
+	NRF_LOG_INFO("Button characteristic added\n\r");
+    NRF_LOG_INFO("- service handle: %#x\n\r", p_smss->service_handle);
+    NRF_LOG_INFO("- char value handle: %#x\r\n", p_smss->button_char_handles.value_handle);
+    NRF_LOG_INFO("- char cccd handle: %#x\r\n\r\n", p_smss->button_char_handles.cccd_handle);
 	
 	return NRF_SUCCESS;
 }
@@ -315,7 +319,7 @@ void ble_smss_init(ble_smss_t * p_smss)
 //	button_char_add(p_smss);
 }
 
-uint32_t ble_smss_on_button_change(ble_smss_t * p_smss, uint8_t button_state)
+uint32_t ble_smss_on_button_change(ble_smss_t * p_smss, uint16_t button_state)
 {
 	NRF_LOG_INFO("on button change...\r\n");
 	if(p_smss->conn_handle != BLE_CONN_HANDLE_INVALID)
@@ -328,9 +332,9 @@ uint32_t ble_smss_on_button_change(ble_smss_t * p_smss, uint8_t button_state)
 		hvx_params.type = BLE_GATT_HVX_NOTIFICATION;
 		hvx_params.offset = 0;
 		hvx_params.p_len = &len;
-		hvx_params.p_data = &button_state;
+		hvx_params.p_data = (uint8_t*)&button_state;
 
-		NRF_LOG_INFO("Sending: 0x%02x to 0x%04x->0x%04x\r\n",
+		NRF_LOG_INFO("Sending: %#xx to 0x%04x->0x%04x\r\n",
 					hvx_params.p_data[0],
 					p_smss->conn_handle,
 					hvx_params.handle);
@@ -345,7 +349,7 @@ uint32_t ble_smss_on_press_value(ble_smss_t * p_smss, int32_t * press_value)
 	if(p_smss->conn_handle != BLE_CONN_HANDLE_INVALID)
 	{
 		ble_gatts_hvx_params_t hvx_params;
-		uint16_t len = sizeof(press_value);
+		uint16_t len = SMS_PRESSURE_CHAR_LEN;
 		memset(&hvx_params, 0, sizeof(hvx_params));
 		
 		hvx_params.handle = p_smss->press_char_handles.value_handle;
@@ -354,8 +358,33 @@ uint32_t ble_smss_on_press_value(ble_smss_t * p_smss, int32_t * press_value)
 		hvx_params.p_len = &len;
 		hvx_params.p_data = (uint8_t*)press_value;
 	
-		NRF_LOG_INFO("Sending: 0x%02x to 0x%04x->0x%04x\r\n",
-					hvx_params.p_data[0],
+//		NRF_LOG_INFO("Sending: %#x to 0x%04x->0x%04x\r\n",
+//					(uint32_t)hvx_params.p_data,
+//					p_smss->conn_handle,
+//					hvx_params.handle);
+		
+		return sd_ble_gatts_hvx(p_smss->conn_handle, &hvx_params);
+	}
+}
+
+//uint32_t ble_smss_on_imu_value(ble_smss_t * p_smss, uint8_t * imu_value)
+uint32_t ble_smss_on_imu_value(ble_smss_t * p_smss, uint32_t * imu_value)
+{
+	NRF_LOG_INFO("on imu value...\r\n");
+	if(p_smss->conn_handle != BLE_CONN_HANDLE_INVALID)
+	{
+		ble_gatts_hvx_params_t hvx_params;
+		uint16_t len = SMS_IMU_CHAR_LEN;
+		memset(&hvx_params, 0, sizeof(hvx_params));
+		
+		hvx_params.handle = p_smss->imu_char_handles.value_handle;
+		hvx_params.type = BLE_GATT_HVX_NOTIFICATION;
+		hvx_params.offset = 0;
+		hvx_params.p_len = &len;
+		hvx_params.p_data = (uint8_t *)imu_value;
+		
+		NRF_LOG_INFO("Sending: %#x to %#x->%#x\n\r",
+					(uint32_t)hvx_params.p_data,
 					p_smss->conn_handle,
 					hvx_params.handle);
 		

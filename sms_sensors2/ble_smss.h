@@ -101,9 +101,10 @@ void ble_smss_on_ble_evt(ble_smss_t * p_smss, ble_evt_t * p_ble_evt);
  *
  * @retval NRF_SUCCESS If the notification was sent successfully. Otherwise, an error code is returned.
  */
-uint32_t ble_smss_on_button_change(ble_smss_t * p_smss, uint8_t button_state);
+uint32_t ble_smss_on_button_change(ble_smss_t * p_smss, uint16_t button_state);
 
-uint32_t ble_smss_on_imu_value(ble_smss_t * p_smss, uint8_t imu_value);
+//uint32_t ble_smss_on_imu_value(ble_smss_t * p_smss, uint8_t * imu_value);
+uint32_t ble_smss_on_imu_value(ble_smss_t * p_smss, uint32_t * imu_value);
 
 uint32_t ble_smss_on_press_value(ble_smss_t * p_smss, int32_t * press_value);
 
