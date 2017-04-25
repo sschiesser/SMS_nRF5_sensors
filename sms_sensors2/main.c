@@ -29,13 +29,17 @@
 #include "softdevice_handler.h"
 #include "app_timer.h"
 #include "app_button.h"
-//#include "ble_lbs.h"
 #include "bsp.h"
 #include "ble_gap.h"
 #include "nrf_delay.h"
+#include "nrf_drv_timer.h"
+#include "nrf_drv_spi.h"
+#include "nrf_drv_twi.h"
 #include "ble_smss.h"
 #include "ble_advertising.h"
-//#include "SEGGER_RTT.h"
+
+#include "sms_pressure.h"
+#include "sms_imu.h"
 
 #define NRF_LOG_MODULE_NAME "APP"
 #include "nrf_log.h"
@@ -68,8 +72,8 @@
 #define APP_TIMER_MAX_TIMERS            6                                           /**< Maximum number of simultaneously created timers. */
 #define APP_TIMER_OP_QUEUE_SIZE         4                                           /**< Size of timer operation queues. */
 
-#define MIN_CONN_INTERVAL               MSEC_TO_UNITS(100, UNIT_1_25_MS)            /**< Minimum acceptable connection interval (0.5 seconds). */
-#define MAX_CONN_INTERVAL               MSEC_TO_UNITS(200, UNIT_1_25_MS)            /**< Maximum acceptable connection interval (1 second). */
+#define MIN_CONN_INTERVAL               MSEC_TO_UNITS(10, UNIT_1_25_MS)            /**< Minimum acceptable connection interval (0.5 seconds). */
+#define MAX_CONN_INTERVAL               MSEC_TO_UNITS(50, UNIT_1_25_MS)            /**< Maximum acceptable connection interval (1 second). */
 #define SLAVE_LATENCY                   0                                           /**< Slave latency. */
 #define CONN_SUP_TIMEOUT                MSEC_TO_UNITS(4000, UNIT_10_MS)             /**< Connection supervisory time-out (4 seconds). */
 #define FIRST_CONN_PARAMS_UPDATE_DELAY  APP_TIMER_TICKS(20000, APP_TIMER_PRESCALER) /**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (15 seconds). */
@@ -84,6 +88,47 @@
 static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;    /**< Handle of the current connection. */
 //static ble_lbs_t                        m_lbs;                                      /**< LED Button Service instance. */
 ble_smss_t								m_smss_service;
+
+/* ====================================================================
+ * VARIABLES
+ * --------------------------------------------------------------------
+ *
+ * ==================================================================== */
+// Timers
+// app timer definitions
+APP_TIMER_DEF(pressure_poll_int_id);
+APP_TIMER_DEF(imu_poll_int_id);
+//APP_TIMER_DEF(micros_cnt_id);
+// drv timer instantiation
+#define TIMER_INSTANCE 1
+const nrf_drv_timer_t TIMER_DELTA_US = NRF_DRV_TIMER_INSTANCE(TIMER_INSTANCE);
+// counter overflow for us timer
+volatile uint32_t micros_cnt_overflow = 0;
+
+// SPI
+#define SPI_INSTANCE 0
+const nrf_drv_spi_t spi_master_instance = NRF_DRV_SPI_INSTANCE(SPI_INSTANCE);
+volatile bool spi_xfer_done;
+#define SPI_MAX_LENGTH 100
+uint8_t m_tx_buf[SPI_MAX_LENGTH] = {0};
+uint8_t m_rx_buf[SPI_MAX_LENGTH + 1];
+
+// TWI
+#define TWI_INSTANCE 1
+const nrf_drv_twi_t twi_master_instance = NRF_DRV_TWI_INSTANCE(TWI_INSTANCE);
+volatile bool twi_xfer_done;
+
+// Pressure
+extern ms58_output_s ms58_output;
+extern ms58_config_s ms58_config;
+
+/* ====================================================================
+ * FUNCTIONS DECLARATIONS
+ * --------------------------------------------------------------------
+ *
+ * ==================================================================== */
+void advertising_start(void);
+
 
 /**@brief Function for assert macro callback.
  *
@@ -101,57 +146,103 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
     app_error_handler(DEAD_BEEF, line_num, p_file_name);
 }
 
-
-/**@brief Function for the LEDs initialization.
- *
- * @details Initializes all LEDs used by the application.
- */
-static void leds_init(void)
+/* ====================================================================
+ * HANDLERS
+ * --------------------------------------------------------------------
+ * Has to be defined first to be called by the init functions
+ * ==================================================================== */
+// Timer interrupts
+static void pressure_poll_int_handler(void * p_context)
 {
-    bsp_board_leds_init();
+//	pressure_poll_int_done = true;
+}
+
+static void imu_poll_int_handler(void * p_context)
+{
+//	bno055_interrupt.new_int = true;
+}
+
+static void timer_delta_us_handler(nrf_timer_event_t event_type, void * p_context)
+{
+	nrf_drv_timer_clear(&TIMER_DELTA_US);
+	bsp_board_led_invert(LEDBUTTON_LED_PIN);
 }
 
 
-/**@brief Function for the Timer initialization.
+// Hardware interrupts
+/**@brief Function for handling events from the button handler module.
  *
- * @details Initializes the timer module.
+ * @param[in] pin_no        The pin that the event applies to.
+ * @param[in] button_action The button action (press/release).
  */
-static void timers_init(void)
+static void button_event_handler(uint8_t pin_no, uint8_t button_action)
 {
-    // Initialize timer module, making it use the scheduler
-    APP_TIMER_INIT(APP_TIMER_PRESCALER, APP_TIMER_OP_QUEUE_SIZE, false);
+    uint32_t err_code;
+	int32_t integer_value;
+
+    switch (pin_no)
+    {
+        case LEDBUTTON_BUTTON_PIN:
+            NRF_LOG_INFO("Send button state change.\r\n");            
+            err_code = ble_smss_on_button_change(&m_smss_service, button_action);
+            if (err_code != NRF_SUCCESS &&
+                err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
+                err_code != NRF_ERROR_INVALID_STATE)
+            {
+                APP_ERROR_CHECK(err_code);
+            }
+            break;
+
+		case SEND_INTEGER_BUTTON_PIN_NR:
+			NRF_LOG_INFO("Send int button pressed\r\n");
+			if(button_action) {
+				integer_value = 65535;
+			}
+			else {
+				integer_value = -65535;
+			}
+			err_code = ble_smss_on_press_value(&m_smss_service, &integer_value);
+			if(err_code != NRF_SUCCESS &&
+			   err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
+			   err_code != NRF_ERROR_INVALID_STATE)
+			{
+				APP_ERROR_CHECK(err_code);
+			}
+			break;
+		
+        default:
+            APP_ERROR_HANDLER(pin_no);
+            break;
+    }
 }
 
 
-/**@brief Function for the GAP initialization.
- *
- * @details This function sets up all the necessary GAP (Generic Access Profile) parameters of the
- *          device including the device name, appearance, and the preferred connection parameters.
- */
-static void gap_params_init(void)
+
+void spi_event_handler(nrf_drv_spi_evt_t const * p_event)
 {
-    uint32_t                err_code;
-    ble_gap_conn_params_t   gap_conn_params;
-    ble_gap_conn_sec_mode_t sec_mode;
-
-    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&sec_mode);
-
-    err_code = sd_ble_gap_device_name_set(&sec_mode,
-                                          (const uint8_t *)DEVICE_NAME,
-                                          strlen(DEVICE_NAME));
-    APP_ERROR_CHECK(err_code);
-
-    memset(&gap_conn_params, 0, sizeof(gap_conn_params));
-
-    gap_conn_params.min_conn_interval = MIN_CONN_INTERVAL;
-    gap_conn_params.max_conn_interval = MAX_CONN_INTERVAL;
-    gap_conn_params.slave_latency     = SLAVE_LATENCY;
-    gap_conn_params.conn_sup_timeout  = CONN_SUP_TIMEOUT;
-
-    err_code = sd_ble_gap_ppcp_set(&gap_conn_params);
-    APP_ERROR_CHECK(err_code);
+    spi_xfer_done = true;
 }
-
+void twi_event_handler(nrf_drv_twi_evt_t const * p_event, void * p_context)
+{
+	twi_xfer_done = true;
+	switch(p_event->type)
+	{
+		case NRF_DRV_TWI_EVT_DONE:
+			twi_xfer_done = true;
+			break;
+		default:
+			break;
+	}	
+}
+// BLE
+/**@brief Function for handling a Connection Parameters error.
+ *
+ * @param[in] nrf_error  Error code containing information about what went wrong.
+ */
+static void conn_params_error_handler(uint32_t nrf_error)
+{
+    APP_ERROR_HANDLER(nrf_error);
+}
 /**@brief Function for handling advertising events.
  *
  * @details This function will be called for advertising events which are passed to the application.
@@ -176,105 +267,6 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
     }
 }
 
-/**@brief Function for initializing the Advertising functionality.
- *
- * @details Encodes the required advertising data and passes it to the stack.
- *          Also builds a structure to be passed to the stack when starting advertising.
- */
-static void advertising_init(void)
-{
-    uint32_t      err_code;
-    ble_advdata_t advdata;
-    memset(&advdata, 0, sizeof(advdata));
-
-    advdata.name_type               = BLE_ADVDATA_FULL_NAME;
-    advdata.flags                   = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
-
-    ble_adv_modes_config_t options = {0};
-    options.ble_adv_fast_enabled  = true;
-    options.ble_adv_fast_interval = APP_ADV_INTERVAL;
-    options.ble_adv_fast_timeout  = APP_ADV_TIMEOUT_IN_SECONDS;
-
-    // OUR_JOB: Create a scan response packet and include the list of UUIDs 
-
-    err_code = ble_advertising_init(&advdata, NULL, &options, on_adv_evt, NULL);
-    APP_ERROR_CHECK(err_code);
-//    ble_advdata_t scanrsp;
-
-//    ble_uuid_t adv_uuids[] = {{SMSS_UUID_SERVICE, m_smss_service.uuid_type}};
-
-//    // Build and set advertising data
-//    memset(&advdata, 0, sizeof(advdata));
-
-//    advdata.name_type          = BLE_ADVDATA_FULL_NAME;
-//    advdata.include_appearance = true;
-//    advdata.flags              = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
-
-
-//    memset(&scanrsp, 0, sizeof(scanrsp));
-//    scanrsp.uuids_complete.uuid_cnt = sizeof(adv_uuids) / sizeof(adv_uuids[0]);
-//    scanrsp.uuids_complete.p_uuids  = adv_uuids;
-
-//    err_code = ble_advdata_set(&advdata, &scanrsp);
-//    APP_ERROR_CHECK(err_code);
-}
-
-
-/**@brief Function for handling write events to the LED characteristic.
- *
- * @param[in] p_lbs     Instance of LED Button Service to which the write applies.
- * @param[in] led_state Written/desired state of the LED.
- */
-static void led_write_handler(ble_smss_t * p_smss, uint8_t led_state)
-{
-    if (led_state)
-    {
-        bsp_board_led_on(LEDBUTTON_LED_PIN);
-        NRF_LOG_INFO("Received LED ON!\r\n");
-    }
-    else
-    {
-        bsp_board_led_off(LEDBUTTON_LED_PIN);
-        NRF_LOG_INFO("Received LED OFF!\r\n");
-    }
-}
-static void led1_write_handler(ble_smss_t * p_smss, uint8_t led_state)
-{
-	if (led_state)
-	{
-		for(int i=0; i<10;i++)
-		{
-			nrf_gpio_pin_toggle(LEDBUTTON_LED1_PIN_NO);
-			nrf_delay_us(100000);
-		}
-	}
-	else
-	{
-		for(int i=0; i<24;i++)
-		{
-			nrf_gpio_pin_toggle(LEDBUTTON_LED1_PIN_NO);
-			nrf_delay_us(40000);
-		}
-	}
-}
-
-
-/**@brief Function for initializing services that will be used by the application.
- */
-static void services_init(void)
-{
-	ble_smss_init(&m_smss_service);
-//    uint32_t       err_code;
-//    ble_lbs_init_t init;
-
-//    init.led_write_handler = led_write_handler;
-//	init.led_write_handler = led1_write_handler;
-
-//    err_code = ble_lbs_init(&m_lbs, &init);
-//    APP_ERROR_CHECK(err_code);
-}
-
-
 /**@brief Function for handling the Connection Parameters Module.
  *
  * @details This function will be called for all events in the Connection Parameters Module that
@@ -296,62 +288,6 @@ static void on_conn_params_evt(ble_conn_params_evt_t * p_evt)
         APP_ERROR_CHECK(err_code);
     }
 }
-
-
-/**@brief Function for handling a Connection Parameters error.
- *
- * @param[in] nrf_error  Error code containing information about what went wrong.
- */
-static void conn_params_error_handler(uint32_t nrf_error)
-{
-    APP_ERROR_HANDLER(nrf_error);
-}
-
-
-/**@brief Function for initializing the Connection Parameters module.
- */
-static void conn_params_init(void)
-{
-    uint32_t               err_code;
-    ble_conn_params_init_t cp_init;
-
-    memset(&cp_init, 0, sizeof(cp_init));
-
-    cp_init.p_conn_params                  = NULL;
-    cp_init.first_conn_params_update_delay = FIRST_CONN_PARAMS_UPDATE_DELAY;
-    cp_init.next_conn_params_update_delay  = NEXT_CONN_PARAMS_UPDATE_DELAY;
-    cp_init.max_conn_params_update_count   = MAX_CONN_PARAMS_UPDATE_COUNT;
-    cp_init.start_on_notify_cccd_handle    = BLE_GATT_HANDLE_INVALID;
-    cp_init.disconnect_on_fail             = false;
-    cp_init.evt_handler                    = on_conn_params_evt;
-    cp_init.error_handler                  = conn_params_error_handler;
-
-    err_code = ble_conn_params_init(&cp_init);
-    APP_ERROR_CHECK(err_code);
-}
-
-
-/**@brief Function for starting advertising.
- */
-static void advertising_start(void)
-{
-    uint32_t             err_code;
-    ble_gap_adv_params_t adv_params;
-
-    // Start advertising
-    memset(&adv_params, 0, sizeof(adv_params));
-
-    adv_params.type        = BLE_GAP_ADV_TYPE_ADV_IND;
-    adv_params.p_peer_addr = NULL;
-    adv_params.fp          = BLE_GAP_ADV_FP_ANY;
-    adv_params.interval    = APP_ADV_INTERVAL;
-    adv_params.timeout     = APP_ADV_TIMEOUT_IN_SECONDS;
-
-    err_code = sd_ble_gap_adv_start(&adv_params);
-    APP_ERROR_CHECK(err_code);
-    bsp_board_led_on(ADVERTISING_LED_PIN);
-}
-
 
 /**@brief Function for handling the Application's BLE stack events.
  *
@@ -462,8 +398,6 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
             break;
     }
 }
-
-
 /**@brief Function for dispatching a BLE stack event to all modules with a BLE stack event handler.
  *
  * @details This function is called from the scheduler in the main loop after a BLE stack
@@ -477,8 +411,99 @@ static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
     ble_conn_params_on_ble_evt(p_ble_evt);
     ble_smss_on_ble_evt(&m_smss_service, p_ble_evt);
 }
+/* ====================================================================
+ * INITIALIZATIONS
+ * --------------------------------------------------------------------
+ *
+ * ==================================================================== */
+// Board
+/**@brief Function for the LEDs initialization.
+ *
+ * @details Initializes all LEDs used by the application.
+ */
+static void leds_init(void)
+{
+    bsp_board_leds_init();
+}
 
 
+/**@brief Function for initializing the button handler module.
+ */
+static void buttons_init(void)
+{
+    uint32_t err_code;
+
+    //The array must be static because a pointer to it will be saved in the button handler module.
+    static app_button_cfg_t buttons[] =
+    {
+        {LEDBUTTON_BUTTON_PIN, false, BUTTON_PULL, button_event_handler},
+		{SEND_INTEGER_BUTTON_PIN_NR, false, BUTTON_PULL, button_event_handler}
+    };
+
+    err_code = app_button_init(buttons, sizeof(buttons) / sizeof(buttons[0]),
+                               BUTTON_DETECTION_DELAY);
+    APP_ERROR_CHECK(err_code);
+}
+
+static void spi_init(void)
+{
+	nrf_drv_spi_config_t spi_config = NRF_DRV_SPI_DEFAULT_CONFIG;
+	spi_config.ss_pin = SPI_SS_PIN;
+	spi_config.miso_pin = SPI_MISO_PIN;
+	spi_config.mosi_pin = SPI_MOSI_PIN;
+	spi_config.sck_pin = SPI_SCK_PIN;
+	spi_config.mode = NRF_DRV_SPI_MODE_0;
+	spi_config.frequency = NRF_DRV_SPI_FREQ_500K;
+	APP_ERROR_CHECK(nrf_drv_spi_init(&spi_master_instance, &spi_config, spi_event_handler));
+}
+
+/**@brief Function for initializing the TWI module.
+ */
+void twi_init(void)
+{
+	ret_code_t err_code;
+	const nrf_drv_twi_config_t twi_config = {
+		.scl				= TWI_SCL_PIN,
+		.sda				= TWI_SDA_PIN,
+//		.frequency			= NRF_TWI_FREQ_100K,
+		.frequency			= NRF_TWI_FREQ_400K,
+		.interrupt_priority = APP_IRQ_PRIORITY_HIGH,
+		.clear_bus_init		= false
+		};
+	
+		err_code = nrf_drv_twi_init(&twi_master_instance, &twi_config, twi_event_handler, NULL);
+		APP_ERROR_CHECK(err_code);
+		
+		nrf_drv_twi_enable(&twi_master_instance);
+}
+
+// Drivers
+/**@brief Function for the Timer initialization.
+ *
+ * @details Initializes the timer module.
+ */
+static void timers_init(void)
+{
+	uint32_t err_code;
+
+    // Initialize application timer module, making it use the scheduler
+    APP_TIMER_INIT(APP_TIMER_PRESCALER, APP_TIMER_OP_QUEUE_SIZE, false);
+	
+	// Initialize the timer driver to count microseconds
+	nrf_drv_timer_config_t timer_config = NRF_DRV_TIMER_DEFAULT_CONFIG;
+	timer_config.frequency = NRF_TIMER_FREQ_1MHz;
+	err_code = nrf_drv_timer_init(&TIMER_DELTA_US, &timer_config, timer_delta_us_handler);
+	APP_ERROR_CHECK(err_code);
+}
+
+
+
+
+
+	
+
+
+// BLE
 /**@brief Function for initializing the BLE stack.
  *
  * @details Initializes the SoftDevice and the BLE event interrupt.
@@ -513,70 +538,172 @@ static void ble_stack_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
-
-/**@brief Function for handling events from the button handler module.
+/**@brief Function for the GAP initialization.
  *
- * @param[in] pin_no        The pin that the event applies to.
- * @param[in] button_action The button action (press/release).
+ * @details This function sets up all the necessary GAP (Generic Access Profile) parameters of the
+ *          device including the device name, appearance, and the preferred connection parameters.
  */
-static void button_event_handler(uint8_t pin_no, uint8_t button_action)
+static void gap_params_init(void)
 {
-    uint32_t err_code;
-	int32_t integer_value;
+    uint32_t                err_code;
+    ble_gap_conn_params_t   gap_conn_params;
+    ble_gap_conn_sec_mode_t sec_mode;
 
-    switch (pin_no)
-    {
-        case LEDBUTTON_BUTTON_PIN:
-            NRF_LOG_INFO("Send button state change.\r\n");            
-            err_code = ble_smss_on_button_change(&m_smss_service, button_action);
-            if (err_code != NRF_SUCCESS &&
-                err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
-                err_code != NRF_ERROR_INVALID_STATE)
-            {
-                APP_ERROR_CHECK(err_code);
-            }
-            break;
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&sec_mode);
 
-		case SEND_INTEGER_BUTTON_PIN_NR:
-			NRF_LOG_INFO("Send int button pressed\r\n");
-			if(button_action) {
-				integer_value = 65535;
-			}
-			else {
-				integer_value = -65535;
-			}
-			err_code = ble_smss_on_press_value(&m_smss_service, &integer_value);
-			if(err_code != NRF_SUCCESS &&
-			   err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
-			   err_code != NRF_ERROR_INVALID_STATE)
-			{
-				APP_ERROR_CHECK(err_code);
-			}
-			break;
-		
-        default:
-            APP_ERROR_HANDLER(pin_no);
-            break;
-    }
+    err_code = sd_ble_gap_device_name_set(&sec_mode,
+                                          (const uint8_t *)DEVICE_NAME,
+                                          strlen(DEVICE_NAME));
+    APP_ERROR_CHECK(err_code);
+
+    memset(&gap_conn_params, 0, sizeof(gap_conn_params));
+
+    gap_conn_params.min_conn_interval = MIN_CONN_INTERVAL;
+    gap_conn_params.max_conn_interval = MAX_CONN_INTERVAL;
+    gap_conn_params.slave_latency     = SLAVE_LATENCY;
+    gap_conn_params.conn_sup_timeout  = CONN_SUP_TIMEOUT;
+
+    err_code = sd_ble_gap_ppcp_set(&gap_conn_params);
+    APP_ERROR_CHECK(err_code);
+}
+
+/**@brief Function for initializing the Advertising functionality.
+ *
+ * @details Encodes the required advertising data and passes it to the stack.
+ *          Also builds a structure to be passed to the stack when starting advertising.
+ */
+static void advertising_init(void)
+{
+    uint32_t      err_code;
+    ble_advdata_t advdata;
+    memset(&advdata, 0, sizeof(advdata));
+
+    advdata.name_type               = BLE_ADVDATA_FULL_NAME;
+    advdata.flags                   = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
+
+    ble_adv_modes_config_t options = {0};
+    options.ble_adv_fast_enabled  = true;
+    options.ble_adv_fast_interval = APP_ADV_INTERVAL;
+    options.ble_adv_fast_timeout  = APP_ADV_TIMEOUT_IN_SECONDS;
+
+    err_code = ble_advertising_init(&advdata, NULL, &options, on_adv_evt, NULL);
+    APP_ERROR_CHECK(err_code);
+}
+
+/**@brief Function for initializing services that will be used by the application.
+ */
+static void services_init(void)
+{
+	ble_smss_init(&m_smss_service);
 }
 
 
-/**@brief Function for initializing the button handler module.
+
+/**@brief Function for initializing the Connection Parameters module.
  */
-static void buttons_init(void)
+static void conn_params_init(void)
 {
-    uint32_t err_code;
+    uint32_t               err_code;
+    ble_conn_params_init_t cp_init;
 
-    //The array must be static because a pointer to it will be saved in the button handler module.
-    static app_button_cfg_t buttons[] =
-    {
-        {LEDBUTTON_BUTTON_PIN, false, BUTTON_PULL, button_event_handler},
-		{SEND_INTEGER_BUTTON_PIN_NR, false, BUTTON_PULL, button_event_handler}
-    };
+    memset(&cp_init, 0, sizeof(cp_init));
 
-    err_code = app_button_init(buttons, sizeof(buttons) / sizeof(buttons[0]),
-                               BUTTON_DETECTION_DELAY);
+    cp_init.p_conn_params                  = NULL;
+    cp_init.first_conn_params_update_delay = FIRST_CONN_PARAMS_UPDATE_DELAY;
+    cp_init.next_conn_params_update_delay  = NEXT_CONN_PARAMS_UPDATE_DELAY;
+    cp_init.max_conn_params_update_count   = MAX_CONN_PARAMS_UPDATE_COUNT;
+    cp_init.start_on_notify_cccd_handle    = BLE_GATT_HANDLE_INVALID;
+    cp_init.disconnect_on_fail             = false;
+    cp_init.evt_handler                    = on_conn_params_evt;
+    cp_init.error_handler                  = conn_params_error_handler;
+
+    err_code = ble_conn_params_init(&cp_init);
     APP_ERROR_CHECK(err_code);
+}
+/**@brief Function for handling write events to the LED characteristic.
+ *
+ * @param[in] p_lbs     Instance of LED Button Service to which the write applies.
+ * @param[in] led_state Written/desired state of the LED.
+ */
+static void led_write_handler(ble_smss_t * p_smss, uint8_t led_state)
+{
+    if (led_state)
+    {
+        bsp_board_led_on(LEDBUTTON_LED_PIN);
+        NRF_LOG_INFO("Received LED ON!\r\n");
+    }
+    else
+    {
+        bsp_board_led_off(LEDBUTTON_LED_PIN);
+        NRF_LOG_INFO("Received LED OFF!\r\n");
+    }
+}
+static void led1_write_handler(ble_smss_t * p_smss, uint8_t led_state)
+{
+	if (led_state)
+	{
+		for(int i=0; i<10;i++)
+		{
+			nrf_gpio_pin_toggle(LEDBUTTON_LED1_PIN_NO);
+			nrf_delay_us(100000);
+		}
+	}
+	else
+	{
+		for(int i=0; i<24;i++)
+		{
+			nrf_gpio_pin_toggle(LEDBUTTON_LED1_PIN_NO);
+			nrf_delay_us(40000);
+		}
+	}
+}
+
+
+
+
+
+
+
+
+
+
+/**@brief Function for starting advertising.
+ */
+void advertising_start(void)
+{
+    uint32_t             err_code;
+    ble_gap_adv_params_t adv_params;
+
+    // Start advertising
+    memset(&adv_params, 0, sizeof(adv_params));
+
+    adv_params.type        = BLE_GAP_ADV_TYPE_ADV_IND;
+    adv_params.p_peer_addr = NULL;
+    adv_params.fp          = BLE_GAP_ADV_FP_ANY;
+    adv_params.interval    = APP_ADV_INTERVAL;
+    adv_params.timeout     = APP_ADV_TIMEOUT_IN_SECONDS;
+
+    err_code = sd_ble_gap_adv_start(&adv_params);
+    APP_ERROR_CHECK(err_code);
+    bsp_board_led_on(ADVERTISING_LED_PIN);
+}
+
+
+
+
+/* ====================================================================
+ * RUN-TIMER FUNCTIONS
+ * --------------------------------------------------------------------
+ *
+ * ==================================================================== */
+static void timers_create(void)
+{
+	uint32_t err_code;
+	err_code = app_timer_create(&pressure_poll_int_id, APP_TIMER_MODE_REPEATED, pressure_poll_int_handler);
+	APP_ERROR_CHECK(err_code);
+
+	err_code = app_timer_create(&imu_poll_int_id, APP_TIMER_MODE_REPEATED, imu_poll_int_handler);
+	APP_ERROR_CHECK(err_code);
 }
 
 
@@ -590,13 +717,16 @@ static void power_manage(void)
 }
 
 
+/* ====================================================================
+ * MAIN
+ * ==================================================================== */
 /**@brief Function for application main entry.
  */
 int main(void)
 {
     ret_code_t err_code;
     
-    // Initialize.
+    // Initialize
     leds_init();
     timers_init();
     err_code = NRF_LOG_INIT(NULL);
@@ -608,12 +738,21 @@ int main(void)
     advertising_init();
     conn_params_init();
 
-    // Start execution.
-//	NRF_LOG_INFO("Starting...\n");
-    NRF_LOG_INFO("Blinky Start!\r\n");
+	spi_init();
+	twi_init();
+	
+	// Instantiate
+	timers_create();
+	
+	// Initialize & configure peripherals
+	ms58_startup();
+	NRF_LOG_INFO("MS58 enabled? %d\r\n", ms58_config.dev_enabled);
+	
+	// Start advertising
+    NRF_LOG_INFO("Starting SMS sensors!\r\n");
+    bsp_board_led_on(ADVERTISING_LED_PIN);
 	err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
 	APP_ERROR_CHECK(err_code);
-//    advertising_start();
 
     // Enter main loop.
     for (;;)

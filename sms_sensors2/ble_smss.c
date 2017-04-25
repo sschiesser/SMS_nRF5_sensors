@@ -6,8 +6,12 @@
 #include "sdk_common.h"
 #include "ble_smss.h"
 #include "ble_srv_common.h"
+#define NRF_LOG_MODULE_NAME "SMSS"
 #include "nrf_log.h"
 #include "app_error.h"
+
+#include "sms_pressure.h"
+#include "sms_imu.h"
 
 
 /**@brief Function for handling the Connect event.
@@ -114,9 +118,9 @@ static uint32_t press_char_add(ble_smss_t * p_smss)
     attr_char_value.p_attr_md   = &attr_md;
     
     // OUR_JOB: Step 2.H, Set characteristic length in number of bytes
-    attr_char_value.max_len     = 12;
-    attr_char_value.init_len    = 12;
-    uint8_t value[12]            = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB};
+    attr_char_value.max_len     = SMS_PRESSURE_CHAR_LEN;
+    attr_char_value.init_len    = SMS_PRESSURE_CHAR_LEN;
+    uint8_t value[SMS_PRESSURE_CHAR_LEN] = {0};
     attr_char_value.p_value     = value;
 
     // OUR_JOB: Step 2.E, Add our new characteristic to the service
@@ -126,7 +130,7 @@ static uint32_t press_char_add(ble_smss_t * p_smss)
                                        &p_smss->press_char_handles);
     APP_ERROR_CHECK(err_code);
     
-    NRF_LOG_INFO("\r\nService handle: %#x\n\r", p_smss->service_handle);
+    NRF_LOG_INFO("Service handle: %#x\n\r", p_smss->service_handle);
     NRF_LOG_INFO("Char value handle: %#x\r\n", p_smss->press_char_handles.value_handle);
     NRF_LOG_INFO("Char cccd handle: %#x\r\n\r\n", p_smss->press_char_handles.cccd_handle);
 

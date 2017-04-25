@@ -6,6 +6,94 @@
 #ifdef USE_APP_CONFIG
 #include "app_config.h"
 #endif
+// <h> SMS application
+//==========================================================
+// <h> SPI_CONFIGURATION - Spi configuration
+
+//==========================================================
+// <o> SPI_SCK_PIN - Pin number  <0-31> 
+
+
+#ifndef SPI_SCK_PIN
+#define SPI_SCK_PIN 29
+#endif
+
+// <o> SPI_MISO_PIN - Pin number  <0-31> 
+
+
+#ifndef SPI_MISO_PIN
+#define SPI_MISO_PIN 28
+#endif
+
+// <o> SPI_MOSI_PIN - Pin number  <0-31> 
+
+
+#ifndef SPI_MOSI_PIN
+#define SPI_MOSI_PIN 27
+#endif
+
+// <o> SPI_SS_PIN - Pin number  <0-31> 
+
+
+#ifndef SPI_SS_PIN
+#define SPI_SS_PIN 30
+#endif
+
+// <o> SPI_IRQ_PRIORITY  - Interrupt priority
+ 
+
+// <i> Priorities 0,2 (nRF51) and 0,1,4,5 (nRF52) are reserved for SoftDevice
+// <0=> 0 (highest) 
+// <1=> 1 
+// <2=> 2 
+// <3=> 3 
+// <4=> 4 
+// <5=> 5 
+// <6=> 6 
+// <7=> 7 
+
+#ifndef SPI_IRQ_PRIORITY
+#define SPI_IRQ_PRIORITY 7
+#endif
+
+// </h> 
+//==========================================================
+
+//==========================================================
+// <h> TWI_CONFIGURATION - Twi configuration
+
+//==========================================================
+// <o> TWI_SCL_PIN - Pin number  <0-31> 
+
+#ifndef TWI_SCL_PIN
+#define TWI_SCL_PIN 11
+#endif
+
+// <o> TWI_SDA_PIN - Pin number  <0-31> 
+
+#ifndef TWI_SDA_PIN
+#define TWI_SDA_PIN 12
+#endif
+
+// </h> 
+//==========================================================
+
+//==========================================================
+// <h> GPIO_CONFIGURATION - gpio configuration
+
+//==========================================================
+// <o> DRDY_INT_PIN - Pin number <0-31>
+
+#ifndef DRDY_INT_PIN
+#define DRDY_INT_PIN 22
+#endif
+
+// </h> 
+//==========================================================
+
+// </h> 
+//==========================================================
+
 // <h> nRF_BLE 
 
 //==========================================================
@@ -2135,7 +2223,7 @@
 // <e> SPI_ENABLED - nrf_drv_spi - SPI/SPIM peripheral driver
 //==========================================================
 #ifndef SPI_ENABLED
-#define SPI_ENABLED 0
+#define SPI_ENABLED 1
 #endif
 #if  SPI_ENABLED
 // <o> SPI_DEFAULT_CONFIG_IRQ_PRIORITY  - Interrupt priority
@@ -2158,7 +2246,7 @@
 // <e> SPI0_ENABLED - Enable SPI0 instance
 //==========================================================
 #ifndef SPI0_ENABLED
-#define SPI0_ENABLED 0
+#define SPI0_ENABLED 1
 #endif
 #if  SPI0_ENABLED
 // <q> SPI0_USE_EASY_DMA  - Use EasyDMA
@@ -2297,7 +2385,7 @@
 // <e> TIMER_ENABLED - nrf_drv_timer - TIMER periperal driver
 //==========================================================
 #ifndef TIMER_ENABLED
-#define TIMER_ENABLED 0
+#define TIMER_ENABLED 1
 #endif
 #if  TIMER_ENABLED
 // <o> TIMER_DEFAULT_CONFIG_FREQUENCY  - Timer frequency if in Timer mode
@@ -2334,7 +2422,7 @@
 // <3=> 32 bit 
 
 #ifndef TIMER_DEFAULT_CONFIG_BIT_WIDTH
-#define TIMER_DEFAULT_CONFIG_BIT_WIDTH 0
+#define TIMER_DEFAULT_CONFIG_BIT_WIDTH 3
 #endif
 
 // <o> TIMER_DEFAULT_CONFIG_IRQ_PRIORITY  - Interrupt priority
@@ -2365,7 +2453,7 @@
  
 
 #ifndef TIMER1_ENABLED
-#define TIMER1_ENABLED 0
+#define TIMER1_ENABLED 1
 #endif
 
 // <q> TIMER2_ENABLED  - Enable TIMER2 instance
@@ -2589,7 +2677,7 @@
 // <e> TWI_ENABLED - nrf_drv_twi - TWI/TWIM peripheral driver
 //==========================================================
 #ifndef TWI_ENABLED
-#define TWI_ENABLED 0
+#define TWI_ENABLED 1
 #endif
 #if  TWI_ENABLED
 // <o> TWI_DEFAULT_CONFIG_FREQUENCY  - Frequency
@@ -2652,14 +2740,14 @@
 // <e> TWI1_ENABLED - Enable TWI1 instance
 //==========================================================
 #ifndef TWI1_ENABLED
-#define TWI1_ENABLED 0
+#define TWI1_ENABLED 1
 #endif
 #if  TWI1_ENABLED
 // <q> TWI1_USE_EASY_DMA  - Use EasyDMA (if present)
  
 
 #ifndef TWI1_USE_EASY_DMA
-#define TWI1_USE_EASY_DMA 0
+#define TWI1_USE_EASY_DMA 1
 #endif
 
 #endif //TWI1_ENABLED
