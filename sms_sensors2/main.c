@@ -840,16 +840,24 @@ int main(void)
 			int32_t * tosend;
 			tosend = &ms58_output.pressure;
 			err_code = ble_smss_on_press_value(&m_smss_service, tosend);
-			NRF_LOG_INFO("Returned %#x!\r\n", err_code);
-//			APP_ERROR_CHECK(err_code);
+			if(	(err_code != 0x3401) &&
+				(err_code != 0x0008) &&
+				(err_code != 0) )
+			{
+				APP_ERROR_CHECK(err_code);
+			}
 		}
 		if(bno055_interrupt.rts) {
 			bno055_interrupt.rts = false;
 			uint32_t * tosend;
 			tosend = (uint32_t*)&bno055_output.grv[0].b;
 			err_code = ble_smss_on_imu_value(&m_smss_service, tosend);
-			NRF_LOG_INFO("Returned %#x!\r\n", err_code);
-//			APP_ERROR_CHECK(err_code);
+			if(	(err_code != 0x3401) &&
+				(err_code != 0x0008) &&
+				(err_code != 0) )
+			{
+				APP_ERROR_CHECK(err_code);
+			}
 		}
     }
 }
