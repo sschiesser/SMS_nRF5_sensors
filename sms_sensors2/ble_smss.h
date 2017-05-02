@@ -51,22 +51,35 @@ extern "C" {
 #define SMSS_UUID_BUTTON_CHAR 0x1C58
 #define SMSS_UUID_PRESS_CHAR  0x1C59
 #define SMSS_UUID_IMU_CHAR	  0x1C5A
+#define SMSS_UUID_UPDATE_CHAR 0x1C60
 //#define SMSS_UUID_SERVICE     0x1523
 //#define SMSS_UUID_BUTTON_CHAR 0x1524
 //#define SMSS_UUID_LED_CHAR    0x1525
 //#define SMSS_UUID_PRESS_CHAR  0x1526
 //#define SMSS_UUID_IMU_CHAR	  0x1527
+			
 
-/**@brief LED Button Service structure. This structure contains various status information for the service. */
+typedef struct ble_smss_s ble_smss_t;
+							  
+typedef void (*ble_smss_app_update_handler_t)	(ble_smss_t * p_smss, uint8_t *data);
+				
 typedef struct
 {
-    uint16_t                    conn_handle;         /**< Handle of the current connection (as provided by the BLE stack). BLE_CONN_HANDLE_INVALID if not in a connection. */
-    uint16_t                    service_handle;      /**< Handle of LED Button Service (as provided by the BLE stack). */
-    ble_gatts_char_handles_t    button_char_handles; /**< Handles related to the Button Characteristic. */
-	ble_gatts_char_handles_t	press_char_handles;
-	ble_gatts_char_handles_t	imu_char_handles;
-	uint8_t						uuid_type;
-} ble_smss_t;
+	ble_smss_app_update_handler_t app_update_function;
+}ble_smss_init_t;	
+							  
+/**@brief LED Button Service structure. This structure contains various status information for the service. */
+typedef struct ble_smss_s
+{
+    uint16_t                    	conn_handle;         /**< Handle of the current connection (as provided by the BLE stack). BLE_CONN_HANDLE_INVALID if not in a connection. */
+    uint16_t                    	service_handle;      /**< Handle of LED Button Service (as provided by the BLE stack). */
+    ble_gatts_char_handles_t    	button_char_handles; /**< Handles related to the Button Characteristic. */
+	ble_gatts_char_handles_t		press_char_handles;
+	ble_gatts_char_handles_t		imu_char_handles;
+	ble_gatts_char_handles_t		app_update_handles;
+	ble_smss_app_update_handler_t	app_update_function;
+	uint8_t							uuid_type;
+}ble_smss_t;
 
 
 //typedef void (*ble_smss_led_write_handler_t) (ble_smss_t * p_smss, uint8_t new_state);
@@ -83,7 +96,7 @@ typedef struct
  *
  * @retval NRF_SUCCESS If the service was initialized successfully. Otherwise, an error code is returned.
  */
-void ble_smss_init(ble_smss_t * p_smss);
+void ble_smss_init(ble_smss_t * p_smss, const ble_smss_init_t * p_smss_init);
 
 /**@brief Function for handling the application's BLE stack events.
  *

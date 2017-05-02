@@ -45,48 +45,50 @@
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 
-#define CENTRAL_LINK_COUNT              0                                           /**< Number of central links used by the application. When changing this number remember to adjust the RAM settings*/
-#define PERIPHERAL_LINK_COUNT           1                                           /**< Number of peripheral links used by the application. When changing this number remember to adjust the RAM settings*/
+#define CENTRAL_LINK_COUNT              0										/**< Number of central links used by the application. When changing this number remember to adjust the RAM settings*/
+#define PERIPHERAL_LINK_COUNT           1										/**< Number of peripheral links used by the application. When changing this number remember to adjust the RAM settings*/
 
 #if (NRF_SD_BLE_API_VERSION == 3)
-#define NRF_BLE_MAX_MTU_SIZE            GATT_MTU_SIZE_DEFAULT                       /**< MTU size used in the softdevice enabling and to reply to a BLE_GATTS_EVT_EXCHANGE_MTU_REQUEST event. */
+#define NRF_BLE_MAX_MTU_SIZE            GATT_MTU_SIZE_DEFAULT					/**< MTU size used in the softdevice enabling and to reply to a BLE_GATTS_EVT_EXCHANGE_MTU_REQUEST event. */
 #endif
 
-#define APP_FEATURE_NOT_SUPPORTED       BLE_GATT_STATUS_ATTERR_APP_BEGIN + 2        /**< Reply when unsupported features are requested. */
+#define APP_FEATURE_NOT_SUPPORTED       BLE_GATT_STATUS_ATTERR_APP_BEGIN + 2	/**< Reply when unsupported features are requested. */
 
-#define ADVERTISING_LED_PIN             BSP_BOARD_LED_0                             /**< Is on when device is advertising. */
-#define CONNECTED_LED_PIN               BSP_BOARD_LED_1                             /**< Is on when device has connected. */
+#define ADVERTISING_LED_PIN             BSP_BOARD_LED_0							/**< Is on when device is advertising. */
+#define CONNECTED_LED_PIN               BSP_BOARD_LED_1							/**< Is on when device has connected. */
 
-#define LEDBUTTON_LED_PIN               BSP_BOARD_LED_2                             /**< LED to be toggled with the help of the LED Button Service. */
+#define LEDBUTTON_LED_PIN               BSP_BOARD_LED_2							/**< LED to be toggled with the help of the LED Button Service. */
 #define LEDBUTTON_LED1_PIN_NO			BSP_BOARD_LED_3
-#define LEDBUTTON_BUTTON1_PIN           BSP_BUTTON_0                                /**< Button that will trigger the notification event with the LED Button Service */
+#define LEDBUTTON_BUTTON1_PIN           BSP_BUTTON_0							/**< Button that will trigger the notification event with the LED Button Service */
 #define LEDBUTTON_BUTTON2_PIN			BSP_BUTTON_1
 
 #define DEVICE_NAME                     "SABRE_SMS"                             /**< Name of device. Will be included in the advertising data. */
-//#define DEVICE_NAME                     "Nordic_Blinky"                             /**< Name of device. Will be included in the advertising data. */
+//#define DEVICE_NAME                     "Nordic_Blinky"						/**< Name of device. Will be included in the advertising data. */
+#define BOOTLOADER_RESET_3MIN			(0x15C75ABE)							/**<Command to reset device and keep the bootloader active for 3 minutes */
+#define BOOTLOADER_DFU_START			(0xB1)
 
-#define APP_ADV_INTERVAL                64                                          /**< The advertising interval (in units of 0.625 ms; this value corresponds to 40 ms). */
-#define APP_ADV_TIMEOUT_IN_SECONDS      BLE_GAP_ADV_TIMEOUT_GENERAL_UNLIMITED       /**< The advertising time-out (in units of seconds). When set to 0, we will never time out. */
+#define APP_ADV_INTERVAL                64										/**< The advertising interval (in units of 0.625 ms; this value corresponds to 40 ms). */
+#define APP_ADV_TIMEOUT_IN_SECONDS      BLE_GAP_ADV_TIMEOUT_GENERAL_UNLIMITED	/**< The advertising time-out (in units of seconds). When set to 0, we will never time out. */
 
-#define APP_TIMER_PRESCALER             0                                           /**< Value of the RTC1 PRESCALER register. */
-#define APP_TIMER_MAX_TIMERS            6                                           /**< Maximum number of simultaneously created timers. */
-#define APP_TIMER_OP_QUEUE_SIZE         4                                           /**< Size of timer operation queues. */
+#define APP_TIMER_PRESCALER             0										/**< Value of the RTC1 PRESCALER register. */
+#define APP_TIMER_MAX_TIMERS            6										/**< Maximum number of simultaneously created timers. */
+#define APP_TIMER_OP_QUEUE_SIZE         4										/**< Size of timer operation queues. */
 
-#define MIN_CONN_INTERVAL               MSEC_TO_UNITS(10, UNIT_1_25_MS)            /**< Minimum acceptable connection interval (0.5 seconds). */
-#define MAX_CONN_INTERVAL               MSEC_TO_UNITS(50, UNIT_1_25_MS)            /**< Maximum acceptable connection interval (1 second). */
-#define SLAVE_LATENCY                   0                                           /**< Slave latency. */
-#define CONN_SUP_TIMEOUT                MSEC_TO_UNITS(4000, UNIT_10_MS)             /**< Connection supervisory time-out (4 seconds). */
-#define FIRST_CONN_PARAMS_UPDATE_DELAY  APP_TIMER_TICKS(20000, APP_TIMER_PRESCALER) /**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (15 seconds). */
-#define NEXT_CONN_PARAMS_UPDATE_DELAY   APP_TIMER_TICKS(5000, APP_TIMER_PRESCALER)  /**< Time between each call to sd_ble_gap_conn_param_update after the first call (5 seconds). */
-#define MAX_CONN_PARAMS_UPDATE_COUNT    3                                           /**< Number of attempts before giving up the connection parameter negotiation. */
+#define MIN_CONN_INTERVAL               MSEC_TO_UNITS(10, UNIT_1_25_MS)			/**< Minimum acceptable connection interval (0.5 seconds). */
+#define MAX_CONN_INTERVAL               MSEC_TO_UNITS(50, UNIT_1_25_MS)			/**< Maximum acceptable connection interval (1 second). */
+#define SLAVE_LATENCY                   0										/**< Slave latency. */
+#define CONN_SUP_TIMEOUT                MSEC_TO_UNITS(4000, UNIT_10_MS)			/**< Connection supervisory time-out (4 seconds). */
+#define FIRST_CONN_PARAMS_UPDATE_DELAY  APP_TIMER_TICKS(20000, APP_TIMER_PRESCALER)	/**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (15 seconds). */
+#define NEXT_CONN_PARAMS_UPDATE_DELAY   APP_TIMER_TICKS(5000, APP_TIMER_PRESCALER)	/**< Time between each call to sd_ble_gap_conn_param_update after the first call (5 seconds). */
+#define MAX_CONN_PARAMS_UPDATE_COUNT    3										/**< Number of attempts before giving up the connection parameter negotiation. */
 
-#define APP_GPIOTE_MAX_USERS            1                                           /**< Maximum number of users of the GPIOTE handler. */
-#define BUTTON_DETECTION_DELAY          APP_TIMER_TICKS(5, APP_TIMER_PRESCALER)    /**< Delay from a GPIOTE event until a button is reported as pushed (in number of timer ticks). */
+#define APP_GPIOTE_MAX_USERS            1										/**< Maximum number of users of the GPIOTE handler. */
+#define BUTTON_DETECTION_DELAY          APP_TIMER_TICKS(5, APP_TIMER_PRESCALER)	/**< Delay from a GPIOTE event until a button is reported as pushed (in number of timer ticks). */
 
-#define DEAD_BEEF                       0xDEADBEEF                                  /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
+#define DEAD_BEEF                       0xDEADBEEF								/**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
-static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;    /**< Handle of the current connection. */
-//static ble_lbs_t                        m_lbs;                                      /**< LED Button Service instance. */
+static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;/**< Handle of the current connection. */
+//static ble_lbs_t                        m_lbs;								/**< LED Button Service instance. */
 ble_smss_t								m_smss_service;
 
 /* ====================================================================
@@ -319,7 +321,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
             err_code = app_button_enable();
             APP_ERROR_CHECK(err_code);
 			
-			timers_start();
+//			timers_start();
 		
             break; // BLE_GAP_EVT_CONNECTED
 
@@ -510,9 +512,23 @@ static void timers_init(void)
 	APP_ERROR_CHECK(err_code);
 }
 
-
-
-
+static void bootloader_start(uint16_t conn_handle)
+{
+	uint32_t err_code;
+	
+	/* Force disconnect, disable softdevice, and then reset */
+	sd_ble_gap_disconnect(conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+	// The below requires at least bootloader 3.1
+	err_code = sd_power_gpregret_set(BOOTLOADER_DFU_START);
+	APP_ERROR_CHECK(err_code);
+	
+	sd_softdevice_disable();
+	
+	nrf_delay_us(500 * 1000);
+	
+	//reset system to start the bootloader
+	NVIC_SystemReset();
+}
 
 	
 
@@ -604,11 +620,26 @@ static void advertising_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
+static void app_update_function(ble_smss_t * p_smss, uint8_t *data)
+{
+	uint32_t command = (data[0] +
+						(data[1] << 8) +
+						(data[2] << 16) +
+						(data[3] << 24));
+	NRF_LOG_INFO("Received app update command: %#x\n\r", command);
+	if(command == 0x1c575abe) {
+		NRF_LOG_INFO("Restarting device with 3 min bootloader...\n\r");
+		bootloader_start(p_smss->conn_handle);
+	}
+}
+
 /**@brief Function for initializing services that will be used by the application.
  */
 static void services_init(void)
 {
-	ble_smss_init(&m_smss_service);
+	ble_smss_init_t init;
+	init.app_update_function = app_update_function;
+	ble_smss_init(&m_smss_service, &init);
 }
 
 
@@ -680,7 +711,6 @@ static void led1_write_handler(ble_smss_t * p_smss, uint8_t led_state)
 
 
 
-
 /**@brief Function for starting advertising.
  */
 void advertising_start(void)
@@ -739,7 +769,7 @@ void timers_start(void)
 {
 	NRF_LOG_INFO("Starting poll timers...\n\r");
 	app_timer_start(pressure_poll_int_id,
-					APP_TIMER_TICKS(MSEC_TO_UNITS(500, UNIT_1_00_MS), 0),
+					APP_TIMER_TICKS(MSEC_TO_UNITS(50, UNIT_1_00_MS), 0),
 					NULL);
 	app_timer_start(imu_poll_int_id,
 					APP_TIMER_TICKS(MSEC_TO_UNITS(300, UNIT_1_00_MS), 0),

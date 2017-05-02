@@ -154,7 +154,7 @@
           <SizeOfObject>0</SizeOfObject>
           <BreakByAccess>0</BreakByAccess>
           <BreakIfRCount>1</BreakIfRCount>
-          <Filename>&lt;1&gt;..\..\..\..\..\..\components\libraries\util\app_error_weak.c</Filename>
+          <Filename>..\..\..\..\..\..\components\libraries\util\app_error_weak.c</Filename>
           <ExecCommand></ExecCommand>
           <Expression>\\nrf52832_xxaa\../../../../../../components/libraries/util/app_error_weak.c\32</Expression>
         </Bp>
@@ -170,7 +170,7 @@
           <SizeOfObject>0</SizeOfObject>
           <BreakByAccess>0</BreakByAccess>
           <BreakIfRCount>1</BreakIfRCount>
-          <Filename>&lt;1&gt;..\..\..\..\..\..\components\libraries\util\app_error.c</Filename>
+          <Filename>..\..\..\..\..\..\components\libraries\util\app_error.c</Filename>
           <ExecCommand></ExecCommand>
           <Expression>\\nrf52832_xxaa\../../../../../../components/libraries/util/app_error.c\113</Expression>
         </Bp>
@@ -334,7 +334,7 @@
           <SizeOfObject>0</SizeOfObject>
           <BreakByAccess>0</BreakByAccess>
           <BreakIfRCount>0</BreakIfRCount>
-          <Filename>&lt;3&gt;..\..\..\ble_smss.c</Filename>
+          <Filename>..\..\..\ble_smss.c</Filename>
           <ExecCommand></ExecCommand>
           <Expression></Expression>
         </Bp>
@@ -350,7 +350,7 @@
           <SizeOfObject>0</SizeOfObject>
           <BreakByAccess>0</BreakByAccess>
           <BreakIfRCount>0</BreakIfRCount>
-          <Filename>&lt;3&gt;..\..\..\ble_smss.c</Filename>
+          <Filename>..\..\..\ble_smss.c</Filename>
           <ExecCommand></ExecCommand>
           <Expression></Expression>
         </Bp>
@@ -366,7 +366,7 @@
           <SizeOfObject>0</SizeOfObject>
           <BreakByAccess>0</BreakByAccess>
           <BreakIfRCount>0</BreakIfRCount>
-          <Filename>&lt;3&gt;..\..\..\ble_smss.c</Filename>
+          <Filename>..\..\..\ble_smss.c</Filename>
           <ExecCommand></ExecCommand>
           <Expression></Expression>
         </Bp>
