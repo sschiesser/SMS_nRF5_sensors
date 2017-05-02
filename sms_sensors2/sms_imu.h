@@ -13,7 +13,7 @@
 //#include "SEGGER_RTT.h"
 #include "bno055.h"
 
-#define SMS_IMU_CHAR_LEN	12
+#define SMS_IMU_CHAR_LEN	16
 
 
 #define PI					(3.1415926535897932384626433832795)

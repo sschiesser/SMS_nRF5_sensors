@@ -258,8 +258,8 @@ static uint32_t imu_char_add(ble_smss_t * p_smss)
 	attr_char_value.p_attr_md = &attr_md;
 	
 	// Set characteristic length (2.H)
-	attr_char_value.max_len = 12;
-	attr_char_value.init_len = 12;
+	attr_char_value.max_len = 16;
+	attr_char_value.init_len = 16;
 	uint8_t value[12] = {0};
 	attr_char_value.p_value = value;
 	
@@ -400,7 +400,7 @@ uint32_t ble_smss_on_button_change(ble_smss_t * p_smss, uint16_t button_state)
 
 uint32_t ble_smss_on_press_value(ble_smss_t * p_smss, int32_t * press_value)
 {
-	NRF_LOG_INFO("on press value...\r\n");
+//	NRF_LOG_INFO("on press value...\r\n");
 	if(p_smss->conn_handle != BLE_CONN_HANDLE_INVALID)
 	{
 		ble_gatts_hvx_params_t hvx_params;
@@ -425,7 +425,7 @@ uint32_t ble_smss_on_press_value(ble_smss_t * p_smss, int32_t * press_value)
 //uint32_t ble_smss_on_imu_value(ble_smss_t * p_smss, uint8_t * imu_value)
 uint32_t ble_smss_on_imu_value(ble_smss_t * p_smss, uint32_t * imu_value)
 {
-	NRF_LOG_INFO("on imu value...\r\n");
+//	NRF_LOG_INFO("on imu value...\r\n");
 	if(p_smss->conn_handle != BLE_CONN_HANDLE_INVALID)
 	{
 		ble_gatts_hvx_params_t hvx_params;
@@ -438,10 +438,10 @@ uint32_t ble_smss_on_imu_value(ble_smss_t * p_smss, uint32_t * imu_value)
 		hvx_params.p_len = &len;
 		hvx_params.p_data = (uint8_t *)imu_value;
 		
-		NRF_LOG_INFO("Sending: %#x to %#x->%#x\n\r",
-					(uint32_t)hvx_params.p_data,
-					p_smss->conn_handle,
-					hvx_params.handle);
+//		NRF_LOG_INFO("Sending: %#x to %#x->%#x\n\r",
+//					(uint32_t)hvx_params.p_data,
+//					p_smss->conn_handle,
+//					hvx_params.handle);
 		
 		return sd_ble_gatts_hvx(p_smss->conn_handle, &hvx_params);
 	}

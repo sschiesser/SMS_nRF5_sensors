@@ -321,7 +321,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
             err_code = app_button_enable();
             APP_ERROR_CHECK(err_code);
 			
-//			timers_start();
+			timers_start();
 		
             break; // BLE_GAP_EVT_CONNECTED
 
@@ -768,11 +768,11 @@ static void power_manage(void)
 void timers_start(void)
 {
 	NRF_LOG_INFO("Starting poll timers...\n\r");
-	app_timer_start(pressure_poll_int_id,
-					APP_TIMER_TICKS(MSEC_TO_UNITS(50, UNIT_1_00_MS), 0),
-					NULL);
+//	app_timer_start(pressure_poll_int_id,
+//					APP_TIMER_TICKS(MSEC_TO_UNITS(50, UNIT_1_00_MS), 0),
+//					NULL);
 	app_timer_start(imu_poll_int_id,
-					APP_TIMER_TICKS(MSEC_TO_UNITS(300, UNIT_1_00_MS), 0),
+					APP_TIMER_TICKS(MSEC_TO_UNITS(50, UNIT_1_00_MS), 0),
 					NULL);
 }
 
@@ -845,9 +845,9 @@ int main(void)
 			if(ms58_output.complete) {
 				ms58_output.complete = false;
 				pressure_calculate();
-				NRF_LOG_INFO("Press/Temp: %#x/%#x\n\r",
-								ms58_output.pressure,
-								ms58_output.temperature);
+//				NRF_LOG_INFO("Press/Temp: %#x/%#x\n\r",
+//								ms58_output.pressure,
+//								ms58_output.temperature);
 				ms58_interrupt.rts = true;
 			}
 			else {
@@ -858,10 +858,11 @@ int main(void)
 		if(bno055_interrupt.new_value) {
 			bno055_interrupt.new_value = false;
 			imu_poll_data();
-			NRF_LOG_INFO("Grv: %d %d %d\n\r",
-						(int32_t)(bno055_output.grv[0].val * 1000000),
-						(int32_t)(bno055_output.grv[1].val * 1000000),
-						(int32_t)(bno055_output.grv[2].val * 1000000));
+//			NRF_LOG_INFO("Quat: %d %d %d %d\n\r",
+//						(int32_t)(bno055_output.quat[0].val * 1000000),
+//						(int32_t)(bno055_output.quat[1].val * 1000000),
+//						(int32_t)(bno055_output.quat[2].val * 1000000),
+//						(int32_t)(bno055_output.quat[3].val * 1000000));
 			bno055_interrupt.rts = true;
 		}
 		
@@ -880,7 +881,7 @@ int main(void)
 		if(bno055_interrupt.rts) {
 			bno055_interrupt.rts = false;
 			uint32_t * tosend;
-			tosend = (uint32_t*)&bno055_output.grv[0].b;
+			tosend = (uint32_t*)&bno055_output.quat[0].b;
 			err_code = ble_smss_on_imu_value(&m_smss_service, tosend);
 			if(	(err_code != 0x3401) &&
 				(err_code != 0x0008) &&
