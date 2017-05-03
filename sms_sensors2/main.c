@@ -54,15 +54,16 @@
 
 #define APP_FEATURE_NOT_SUPPORTED       BLE_GATT_STATUS_ATTERR_APP_BEGIN + 2	/**< Reply when unsupported features are requested. */
 
-#define ADVERTISING_LED_PIN             BSP_BOARD_LED_0							/**< Is on when device is advertising. */
-#define CONNECTED_LED_PIN               BSP_BOARD_LED_1							/**< Is on when device has connected. */
+#define ADVERTISING_LED_PIN             BSP_BOARD_LED_1							/**< Is on when device is advertising. */
+//#define CONNECTED_LED_PIN               BSP_BOARD_LED_1							/**< Is on when device has connected. */
+#define SENDING_LED_PIN					BSP_BOARD_LED_0
 
-#define LEDBUTTON_LED_PIN               BSP_BOARD_LED_2							/**< LED to be toggled with the help of the LED Button Service. */
-#define LEDBUTTON_LED1_PIN_NO			BSP_BOARD_LED_3
+//#define LEDBUTTON_LED_PIN               BSP_BOARD_LED_2							/**< LED to be toggled with the help of the LED Button Service. */
+//#define LEDBUTTON_LED1_PIN_NO			BSP_BOARD_LED_3
 #define LEDBUTTON_BUTTON1_PIN           BSP_BUTTON_0							/**< Button that will trigger the notification event with the LED Button Service */
 #define LEDBUTTON_BUTTON2_PIN			BSP_BUTTON_1
 
-#define DEVICE_NAME                     "SABRE_SMS"                             /**< Name of device. Will be included in the advertising data. */
+#define DEVICE_NAME                     "SMS_sensors"                             /**< Name of device. Will be included in the advertising data. */
 //#define DEVICE_NAME                     "Nordic_Blinky"						/**< Name of device. Will be included in the advertising data. */
 #define BOOTLOADER_RESET_3MIN			(0x15C75ABE)							/**<Command to reset device and keep the bootloader active for 3 minutes */
 #define BOOTLOADER_DFU_START			(0xB1)
@@ -174,7 +175,7 @@ static void imu_poll_int_handler(void * p_context)
 static void timer_delta_us_handler(nrf_timer_event_t event_type, void * p_context)
 {
 	nrf_drv_timer_clear(&TIMER_DELTA_US);
-	bsp_board_led_invert(LEDBUTTON_LED_PIN);
+//	bsp_board_led_invert(LEDBUTTON_LED_PIN);
 }
 
 
@@ -314,7 +315,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
     {
         case BLE_GAP_EVT_CONNECTED:
             NRF_LOG_INFO("Connected\r\n");
-            bsp_board_led_on(CONNECTED_LED_PIN);
+//            bsp_board_led_on(CONNECTED_LED_PIN);
             bsp_board_led_off(ADVERTISING_LED_PIN);
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
 
@@ -327,7 +328,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 
         case BLE_GAP_EVT_DISCONNECTED:
             NRF_LOG_INFO("Disconnected\r\n");
-            bsp_board_led_off(CONNECTED_LED_PIN);
+//            bsp_board_led_off(CONNECTED_LED_PIN);
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
 
             err_code = app_button_disable();
@@ -670,38 +671,38 @@ static void conn_params_init(void)
  * @param[in] p_lbs     Instance of LED Button Service to which the write applies.
  * @param[in] led_state Written/desired state of the LED.
  */
-static void led_write_handler(ble_smss_t * p_smss, uint8_t led_state)
-{
-    if (led_state)
-    {
-        bsp_board_led_on(LEDBUTTON_LED_PIN);
-        NRF_LOG_INFO("Received LED ON!\r\n");
-    }
-    else
-    {
-        bsp_board_led_off(LEDBUTTON_LED_PIN);
-        NRF_LOG_INFO("Received LED OFF!\r\n");
-    }
-}
-static void led1_write_handler(ble_smss_t * p_smss, uint8_t led_state)
-{
-	if (led_state)
-	{
-		for(int i=0; i<10;i++)
-		{
-			nrf_gpio_pin_toggle(LEDBUTTON_LED1_PIN_NO);
-			nrf_delay_us(100000);
-		}
-	}
-	else
-	{
-		for(int i=0; i<24;i++)
-		{
-			nrf_gpio_pin_toggle(LEDBUTTON_LED1_PIN_NO);
-			nrf_delay_us(40000);
-		}
-	}
-}
+//static void led_write_handler(ble_smss_t * p_smss, uint8_t led_state)
+//{
+//    if (led_state)
+//    {
+//        bsp_board_led_on(LEDBUTTON_LED_PIN);
+//        NRF_LOG_INFO("Received LED ON!\r\n");
+//    }
+//    else
+//    {
+//        bsp_board_led_off(LEDBUTTON_LED_PIN);
+//        NRF_LOG_INFO("Received LED OFF!\r\n");
+//    }
+//}
+//static void led1_write_handler(ble_smss_t * p_smss, uint8_t led_state)
+//{
+//	if (led_state)
+//	{
+//		for(int i=0; i<10;i++)
+//		{
+//			nrf_gpio_pin_toggle(LEDBUTTON_LED1_PIN_NO);
+//			nrf_delay_us(100000);
+//		}
+//	}
+//	else
+//	{
+//		for(int i=0; i<24;i++)
+//		{
+//			nrf_gpio_pin_toggle(LEDBUTTON_LED1_PIN_NO);
+//			nrf_delay_us(40000);
+//		}
+//	}
+//}
 
 
 
@@ -768,9 +769,9 @@ static void power_manage(void)
 void timers_start(void)
 {
 	NRF_LOG_INFO("Starting poll timers...\n\r");
-//	app_timer_start(pressure_poll_int_id,
-//					APP_TIMER_TICKS(MSEC_TO_UNITS(50, UNIT_1_00_MS), 0),
-//					NULL);
+	app_timer_start(pressure_poll_int_id,
+					APP_TIMER_TICKS(MSEC_TO_UNITS(71, UNIT_1_00_MS), 0),
+					NULL);
 	app_timer_start(imu_poll_int_id,
 					APP_TIMER_TICKS(MSEC_TO_UNITS(50, UNIT_1_00_MS), 0),
 					NULL);
@@ -870,7 +871,9 @@ int main(void)
 			ms58_interrupt.rts = false;
 			int32_t * tosend;
 			tosend = &ms58_output.pressure;
+		    bsp_board_led_on(SENDING_LED_PIN);
 			err_code = ble_smss_on_press_value(&m_smss_service, tosend);
+			bsp_board_led_off(SENDING_LED_PIN);
 			if(	(err_code != 0x3401) &&
 				(err_code != 0x0008) &&
 				(err_code != 0) )
@@ -882,7 +885,9 @@ int main(void)
 			bno055_interrupt.rts = false;
 			uint32_t * tosend;
 			tosend = (uint32_t*)&bno055_output.quat[0].b;
+		    bsp_board_led_on(SENDING_LED_PIN);
 			err_code = ble_smss_on_imu_value(&m_smss_service, tosend);
+		    bsp_board_led_off(SENDING_LED_PIN);
 			if(	(err_code != 0x3401) &&
 				(err_code != 0x0008) &&
 				(err_code != 0) )

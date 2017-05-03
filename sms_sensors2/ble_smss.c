@@ -396,6 +396,7 @@ uint32_t ble_smss_on_button_change(ble_smss_t * p_smss, uint16_t button_state)
 		
 		return sd_ble_gatts_hvx(p_smss->conn_handle, &hvx_params);
 	}
+	return BLE_ERROR_INVALID_CONN_HANDLE;
 }
 
 uint32_t ble_smss_on_press_value(ble_smss_t * p_smss, int32_t * press_value)
@@ -420,6 +421,7 @@ uint32_t ble_smss_on_press_value(ble_smss_t * p_smss, int32_t * press_value)
 		
 		return sd_ble_gatts_hvx(p_smss->conn_handle, &hvx_params);
 	}
+	return BLE_ERROR_INVALID_CONN_HANDLE;
 }
 
 //uint32_t ble_smss_on_imu_value(ble_smss_t * p_smss, uint8_t * imu_value)
@@ -445,4 +447,5 @@ uint32_t ble_smss_on_imu_value(ble_smss_t * p_smss, uint32_t * imu_value)
 		
 		return sd_ble_gatts_hvx(p_smss->conn_handle, &hvx_params);
 	}
+	return BLE_ERROR_INVALID_CONN_HANDLE;
 }
