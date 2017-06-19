@@ -520,7 +520,7 @@ static void bootloader_start(uint16_t conn_handle)
 	/* Force disconnect, disable softdevice, and then reset */
 	sd_ble_gap_disconnect(conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
 	// The below requires at least bootloader 3.1
-	err_code = sd_power_gpregret_set(BOOTLOADER_DFU_START);
+	err_code = sd_power_gpregret_set(BOOTLOADER_DFU_START, 0x000000FF);
 	APP_ERROR_CHECK(err_code);
 	
 	sd_softdevice_disable();
@@ -798,6 +798,7 @@ int main(void)
     advertising_init();
     conn_params_init();
 
+	NRF_LOG_INFO("Initializing hardware...\n\r");
 	spi_init();
 	twi_init();
 	
@@ -846,9 +847,9 @@ int main(void)
 			if(ms58_output.complete) {
 				ms58_output.complete = false;
 				pressure_calculate();
-//				NRF_LOG_INFO("Press/Temp: %#x/%#x\n\r",
-//								ms58_output.pressure,
-//								ms58_output.temperature);
+				NRF_LOG_INFO("Press/Temp: %#x/%#x\n\r",
+								ms58_output.pressure,
+								ms58_output.temperature);
 				ms58_interrupt.rts = true;
 			}
 			else {
