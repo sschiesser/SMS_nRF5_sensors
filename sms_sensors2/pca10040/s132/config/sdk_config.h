@@ -29,7 +29,7 @@
 
 
 #ifndef SPI_MOSI_PIN
-#define SPI_MOSI_PIN 27
+#define SPI_MOSI_PIN 31
 #endif
 
 // <o> SPI_SS_PIN - Pin number  <0-31> 
@@ -86,6 +86,20 @@
 
 #ifndef DRDY_INT_PIN
 #define DRDY_INT_PIN 22
+#endif
+
+//==========================================================
+// <o> DBG1_PIN - Pin number <0-31>
+
+#ifndef DBG1_PIN
+#define DBG1_PIN 19
+#endif
+
+//==========================================================
+// <o> DBG2_PIN - Pin number <0-31>
+
+#ifndef DBG2_PIN
+#define DBG2_PIN 20
 #endif
 
 // </h> 
