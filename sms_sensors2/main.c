@@ -770,10 +770,10 @@ void timers_start(void)
 {
 	NRF_LOG_INFO("Starting poll timers...\n\r");
 	app_timer_start(pressure_poll_int_id,
-					APP_TIMER_TICKS(MSEC_TO_UNITS(71, UNIT_1_00_MS), 0),
+					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_PRESSURE_POLL_MS, UNIT_1_00_MS), 0),
 					NULL);
 	app_timer_start(imu_poll_int_id,
-					APP_TIMER_TICKS(MSEC_TO_UNITS(50, UNIT_1_00_MS), 0),
+					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_IMU_POLL_MS, UNIT_1_00_MS), 0),
 					NULL);
 }
 
@@ -842,6 +842,8 @@ int main(void)
 		
 		if(ms58_interrupt.new_value)
 		{
+			nrf_gpio_pin_write(DBG1_PIN, 1);
+			
 			ms58_interrupt.new_value = false;
 			pressure_read_data();
 			if(ms58_output.complete) {
@@ -855,20 +857,28 @@ int main(void)
 			else {
 				ms58_output.complete = true;
 			}
+			
+			nrf_gpio_pin_write(DBG1_PIN, 0);
 		}
 		
 		if(bno055_interrupt.new_value) {
+			nrf_gpio_pin_write(DBG2_PIN, 1);
+
 			bno055_interrupt.new_value = false;
-			imu_poll_data();
+			imu_poll_data(SMS_IMU_DATAMSK_QUAT);
 //			NRF_LOG_INFO("Quat: %d %d %d %d\n\r",
 //						(int32_t)(bno055_output.quat[0].val * 1000000),
 //						(int32_t)(bno055_output.quat[1].val * 1000000),
 //						(int32_t)(bno055_output.quat[2].val * 1000000),
 //						(int32_t)(bno055_output.quat[3].val * 1000000));
 			bno055_interrupt.rts = true;
+			
+			nrf_gpio_pin_write(DBG2_PIN, 0);
 		}
 		
 		if(ms58_interrupt.rts) {
+			nrf_gpio_pin_write(DBG1_PIN, 1);
+			
 			ms58_interrupt.rts = false;
 			int32_t * tosend;
 			tosend = &ms58_output.pressure;
@@ -881,8 +891,12 @@ int main(void)
 			{
 				APP_ERROR_CHECK(err_code);
 			}
+			
+			nrf_gpio_pin_write(DBG1_PIN, 0);
 		}
 		if(bno055_interrupt.rts) {
+			nrf_gpio_pin_write(DBG2_PIN, 1);
+			
 			bno055_interrupt.rts = false;
 			uint32_t * tosend;
 			tosend = (uint32_t*)&bno055_output.quat[0].b;
@@ -895,6 +909,8 @@ int main(void)
 			{
 				APP_ERROR_CHECK(err_code);
 			}
+			
+			nrf_gpio_pin_write(DBG2_PIN, 0);
 		}
     }
 }

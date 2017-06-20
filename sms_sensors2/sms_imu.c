@@ -521,96 +521,115 @@ void bno055_int_reset(void)
 }
 
 
-void imu_poll_data(void)
+void imu_poll_data(uint8_t data_msk)
 {
-	// read raw data storage
-	int16_t data3[3], data4[4];
-	float ax, ay, az, gx, gy, gz, mx, my, mz;
-	float q[4];
-	float yaw, pitch, roll;
-	float lia[3], grv[3];
-	uint8_t i;
+	if((data_msk & SMS_IMU_DATAMSK_ACCEL) == SMS_IMU_DATAMSK_ACCEL) {
+		float ax, ay, az;
+		int16_t data[3];
+		read_accel_data(data);  // Read the x/y/z adc values
+		// Now we'll calculate the accleration value into actual mg's
+		ax = (float)data[0]; // - accelBias[0];  // subtract off calculated accel bias
+		ay = (float)data[1]; // - accelBias[1];
+		az = (float)data[2]; // - accelBias[2];
+		// Fill the sensor output table for later sending
+		bno055_output.accel[0].val = ax;
+		bno055_output.accel[1].val = ay;
+		bno055_output.accel[2].val = az;
+		// NRF_LOG_INFO("Raw acceleration: %x, %x, %x\n", (int32_t)(ax*10000.), (int32_t)(ay*10000.), (int32_t)(az*10000.));
+	}
 	
-    read_accel_data(data3);  // Read the x/y/z adc values
-    // Now we'll calculate the accleration value into actual mg's
-    ax = (float)data3[0]; // - accelBias[0];  // subtract off calculated accel bias
-    ay = (float)data3[1]; // - accelBias[1];
-    az = (float)data3[2]; // - accelBias[2];
-	// Fill the sensor output table for later sending
-	bno055_output.accel[0].val = ax;
-	bno055_output.accel[1].val = ay;
-	bno055_output.accel[2].val = az;
-//	NRF_LOG_INFO("Raw acceleration: %x, %x, %x\n", (int32_t)(ax*10000.), (int32_t)(ay*10000.), (int32_t)(az*10000.));
-	
-	
-    read_gyro_data(data3);  // Read the x/y/z adc values
-    // Calculate the gyro value into actual degrees per second
-    gx = (float)data3[0]/16.; // - gyroBias[0];  // subtract off calculated gyro bias
-    gy = (float)data3[1]/16.; // - gyroBias[1];  
-    gz = (float)data3[2]/16.; // - gyroBias[2];  
-	// Fill the sensor output table for later sending
-	bno055_output.gyro[0].val = gx;
-	bno055_output.gyro[1].val = gy;
-	bno055_output.gyro[2].val = gz;
-//	NRF_LOG_INFO("Raw gyroscope   : %ld, %ld, %ld\n", (int32_t)(gx*10000.), (int32_t)(gy*10000.), (int32_t)(gz*10000.));
+	if((data_msk & SMS_IMU_DATAMSK_GYRO) == SMS_IMU_DATAMSK_GYRO) {
+		float gx, gy, gz;
+		int16_t data[3];
+		read_gyro_data(data);  // Read the x/y/z adc values
+		// Calculate the gyro value into actual degrees per second
+		gx = (float)data[0]/16.; // - gyroBias[0];  // subtract off calculated gyro bias
+		gy = (float)data[1]/16.; // - gyroBias[1];  
+		gz = (float)data[2]/16.; // - gyroBias[2];  
+		// Fill the sensor output table for later sending
+		bno055_output.gyro[0].val = gx;
+		bno055_output.gyro[1].val = gy;
+		bno055_output.gyro[2].val = gz;
+	//	NRF_LOG_INFO("Raw gyroscope   : %ld, %ld, %ld\n", (int32_t)(gx*10000.), (int32_t)(gy*10000.), (int32_t)(gz*10000.));
+	}
 
-    read_mag_data(data3);  // Read the x/y/z adc values   
-    // Calculate the magnetometer values in milliGauss
-    mx = (float)data3[0]/1.6; // - magBias[0];  // get actual magnetometer value in mGauss 
-    my = (float)data3[1]/1.6; // - magBias[1];  
-    mz = (float)data3[2]/1.6; // - magBias[2];   
-	// Fill the sensor output table for later sending
-	bno055_output.mag[0].val = mx;
-	bno055_output.mag[1].val = my;
-	bno055_output.mag[2].val = mz;
-//	NRF_LOG_INFO("Raw magnetometer: %ld, %ld, %ld\n", (int32_t)(mx*10000.), (int32_t)(my*10000.), (int32_t)(mz*10000.));
+	if((data_msk & SMS_IMU_DATAMSK_MAG) == SMS_IMU_DATAMSK_MAG) {
+		float mx, my, mz;
+		int16_t data[3];
+		read_mag_data(data);  // Read the x/y/z adc values   
+		// Calculate the magnetometer values in milliGauss
+		mx = (float)data[0]/1.6; // - magBias[0];  // get actual magnetometer value in mGauss 
+		my = (float)data[1]/1.6; // - magBias[1];  
+		mz = (float)data[2]/1.6; // - magBias[2];   
+		// Fill the sensor output table for later sending
+		bno055_output.mag[0].val = mx;
+		bno055_output.mag[1].val = my;
+		bno055_output.mag[2].val = mz;
+	//	NRF_LOG_INFO("Raw magnetometer: %ld, %ld, %ld\n", (int32_t)(mx*10000.), (int32_t)(my*10000.), (int32_t)(mz*10000.));
+	}
     
-    read_quat_data(data4);  // Read the x/y/z adc values   
-    // Calculate the quaternion values  
-    q[0] = (float)(data4[0])/16384.;    
-    q[1] = (float)(data4[1])/16384.;  
-    q[2] = (float)(data4[2])/16384.;   
-    q[3] = (float)(data4[3])/16384.;   
-	// Fill the sensor output table for later sending
-	bno055_output.quat[0].val = q[0];
-	bno055_output.quat[1].val = q[1];
-	bno055_output.quat[2].val = q[2];
-	bno055_output.quat[3].val = q[3];
-// 	NRF_LOG_INFO("Raw quaternions : %ld, %ld, %ld, %ld\n", (int32_t)(q[0]*10000.), (int32_t)(q[1]*10000.), (int32_t)(q[2]*10000.), (int32_t)(q[3]*10000.));
-   
-    read_euler_data(data3);  // Read the x/y/z adc values   
-    // Calculate the Euler angles values in degrees
-    yaw = (float)data3[0]/16.;  
-    roll = (float)data3[1]/16.;  
-    pitch = (float)data3[2]/16.;   
-	// Fill the sensor output table for later sending
-	bno055_output.yaw.val = yaw;
-	bno055_output.roll.val = roll;
-	bno055_output.pitch.val = pitch;
-// 	NRF_LOG_INFO("Raw euler angles: %ld, %ld, %ld\n", (int32_t)(yaw*10000.), (int32_t)(roll*10000.), (int32_t)(pitch*10000.));
-
-    read_lia_data(data3);  // Read the x/y/z adc values   
-    // Calculate the linear acceleration (sans gravity) values in mg
-    lia[0] = (float)data3[0];  
-    lia[1] = (float)data3[1];  
-    lia[2] = (float)data3[2];   
-	// Fill the sensor output table for later sending
-	bno055_output.lia[0].val = lia[0];
-	bno055_output.lia[1].val = lia[1];
-	bno055_output.lia[2].val = lia[2];
-//	NRF_LOG_INFO("Raw LIA         : %ld, %ld, %ld\n", (int32_t)(lia[0]*10000.), (int32_t)(lia[1]*10000.), (int32_t)(lia[2]*10000.));
-
-    read_grv_data(data3);  // Read the x/y/z adc values   
-    // Calculate the linear acceleration (sans gravity) values in mg
-    grv[0] = (float)data3[0];  
-    grv[1] = (float)data3[1];  
-    grv[2] = (float)data3[2];   
-	// Fill the sensor output table for later sending
-	bno055_output.grv[0].val = grv[0];
-	bno055_output.grv[1].val = grv[1];
-	bno055_output.grv[2].val = grv[2];
-//	NRF_LOG_INFO("Raw gravity     : %ld, %ld, %ld\n", (int32_t)(grv[0]*10000.), (int32_t)(grv[1]*10000.), (int32_t)(grv[2]*10000.));
-
+	if((data_msk & SMS_IMU_DATAMSK_QUAT) == SMS_IMU_DATAMSK_QUAT) {
+		float q[4];
+		int16_t data[4];
+		read_quat_data(data);  // Read the x/y/z adc values   
+		// Calculate the quaternion values  
+		q[0] = (float)(data[0])/16384.;    
+		q[1] = (float)(data[1])/16384.;  
+		q[2] = (float)(data[2])/16384.;   
+		q[3] = (float)(data[3])/16384.;   
+		// Fill the sensor output table for later sending
+		bno055_output.quat[0].val = q[0];
+		bno055_output.quat[1].val = q[1];
+		bno055_output.quat[2].val = q[2];
+		bno055_output.quat[3].val = q[3];
+	// 	NRF_LOG_INFO("Raw quaternions : %ld, %ld, %ld, %ld\n", (int32_t)(q[0]*10000.), (int32_t)(q[1]*10000.), (int32_t)(q[2]*10000.), (int32_t)(q[3]*10000.));
+	}
+	
+	if((data_msk & SMS_IMU_DATAMSK_EULER) == SMS_IMU_DATAMSK_EULER) {
+		float yaw, roll, pitch;
+		int16_t data[3];
+		read_euler_data(data);  // Read the x/y/z adc values   
+		// Calculate the Euler angles values in degrees
+		yaw = (float)data[0]/16.;  
+		roll = (float)data[1]/16.;  
+		pitch = (float)data[2]/16.;   
+		// Fill the sensor output table for later sending
+		bno055_output.yaw.val = yaw;
+		bno055_output.roll.val = roll;
+		bno055_output.pitch.val = pitch;
+	// 	NRF_LOG_INFO("Raw euler angles: %ld, %ld, %ld\n", (int32_t)(yaw*10000.), (int32_t)(roll*10000.), (int32_t)(pitch*10000.));
+	}
+	
+	if((data_msk & SMS_IMU_DATAMSK_LIA) == SMS_IMU_DATAMSK_LIA) {
+		float lia[3];
+		int16_t data[3];
+		read_lia_data(data);  // Read the x/y/z adc values   
+		// Calculate the linear acceleration (sans gravity) values in mg
+		lia[0] = (float)data[0];  
+		lia[1] = (float)data[1];  
+		lia[2] = (float)data[2];   
+		// Fill the sensor output table for later sending
+		bno055_output.lia[0].val = lia[0];
+		bno055_output.lia[1].val = lia[1];
+		bno055_output.lia[2].val = lia[2];
+	//	NRF_LOG_INFO("Raw LIA         : %ld, %ld, %ld\n", (int32_t)(lia[0]*10000.), (int32_t)(lia[1]*10000.), (int32_t)(lia[2]*10000.));
+	}
+	
+	if((data_msk & SMS_IMU_DATAMSK_GRV) == SMS_IMU_DATAMSK_GRV) {
+		float grv[3];
+		int16_t data[3];
+		read_grv_data(data);  // Read the x/y/z adc values   
+		// Calculate the linear acceleration (sans gravity) values in mg
+		grv[0] = (float)data[0];  
+		grv[1] = (float)data[1];  
+		grv[2] = (float)data[2];   
+		// Fill the sensor output table for later sending
+		bno055_output.grv[0].val = grv[0];
+		bno055_output.grv[1].val = grv[1];
+		bno055_output.grv[2].val = grv[2];
+	//	NRF_LOG_INFO("Raw gravity     : %ld, %ld, %ld\n", (int32_t)(grv[0]*10000.), (int32_t)(grv[1]*10000.), (int32_t)(grv[2]*10000.));
+	}
+	
 	// Chose (once) between unprecise but low-power ms app timer
 	// and precise current-demanding us drv timer 
 //	static uint32_t last_time_ms = 0;

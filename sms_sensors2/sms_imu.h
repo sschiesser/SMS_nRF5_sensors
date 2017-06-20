@@ -13,10 +13,20 @@
 //#include "SEGGER_RTT.h"
 #include "bno055.h"
 
-#define SMS_IMU_CHAR_LEN	16
+#define SMS_IMU_CHAR_LEN		16
+
+#define SMS_IMU_DATAMSK_GRV		(1 << 6)
+#define SMS_IMU_DATAMSK_LIA		(1 << 5)
+#define SMS_IMU_DATAMSK_EULER	(1 << 4)
+#define SMS_IMU_DATAMSK_QUAT	(1 << 3)
+#define SMS_IMU_DATAMSK_MAG		(1 << 2)
+#define SMS_IMU_DATAMSK_GYRO	(1 << 1)
+#define SMS_IMU_DATAMSK_ACCEL	(1 << 0)
+
+#define SMS_IMU_POLL_MS			19
 
 
-#define PI					(3.1415926535897932384626433832795)
+#define PI						(3.1415926535897932384626433832795)
 
 //void bno055_reset(void);
 //int bno055_check(void);
@@ -24,7 +34,11 @@ void imu_startup(void);
 void imu_configure(void);
 void imu_check_cal(void);
 void imu_initialize(void);
-void imu_poll_data(void);
+// IMU data mask:
+// bit:  7  -  6  -  5  -   4   -   3  -  2  -   1  -   0 
+// val: N/A - grv - lia - euler - quat - mag - gyro - accel
+void imu_poll_data(uint8_t data_msk);
+
 
 //int bno055_test(void);
 //void bno055_init_config_values(void);
