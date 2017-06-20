@@ -106,11 +106,23 @@
 //==========================================================
 
 //==========================================================
-// <e> APP Debug - debug flag
+// <e> APP_DEBUG - debug flag
 //==========================================================
 
 #ifndef APP_DEBUG
 #define APP_DEBUG 1
+#endif
+#if APP_DEBUG
+// <o> APP_DEBUG_LEVEL - debug level
+ 
+// <564295870=> error
+// <6257285=> development
+// <551781300=> info 
+
+#ifndef APP_DEBUG_LEVEL
+#define APP_DEVG_LEVEL -551781300
+#endif
+
 #endif
 
 // </e>

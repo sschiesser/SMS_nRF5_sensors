@@ -48,10 +48,19 @@
 #define CENTRAL_LINK_COUNT              0										/**< Number of central links used by the application. When changing this number remember to adjust the RAM settings*/
 #define PERIPHERAL_LINK_COUNT           1										/**< Number of peripheral links used by the application. When changing this number remember to adjust the RAM settings*/
 
+#define APP_DEBUG_LEVEL_ERROR			0xff
+#define APP_DEBUG_LEVEL_DEVELOPMENT		0xfe
+#define APP_DEBUG_LEVEL_INFO			0xfd
+
+uint8_t app_debug_level = 0;
 #if APP_DEBUG
-bool appDebug = true;
-#else
-bool appDebug = false;
+#if (APP_DEBUG_LEVEL == 564295870)
+app_debug_level = APP_DEBUG_LEVEL_ERROR;
+#elif (APP_DEBUG_LEVEL == 6257285)
+app_debug_level = APP_DEBUG_LEVEL_DEVELOPMENT;
+#elif (APP_DEBUG_LEVEL == 551781300)
+app_debug_level = APP_DEBUG_LEVEL_INFO;
+#endif
 #endif
 
 #if (NRF_SD_BLE_API_VERSION == 3)
@@ -94,6 +103,9 @@ bool appDebug = false;
 
 #define DEAD_BEEF                       0xDEADBEEF								/**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
+#define SMS_BUTTON_LONG_PRESS_MS		3000
+
+static uint8_t 							button_mask = 0;
 static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;/**< Handle of the current connection. */
 //static ble_lbs_t                        m_lbs;								/**< LED Button Service instance. */
 ble_smss_t								m_smss_service;
@@ -107,6 +119,7 @@ ble_smss_t								m_smss_service;
 // app timer definitions
 APP_TIMER_DEF(pressure_poll_int_id);
 APP_TIMER_DEF(imu_poll_int_id);
+APP_TIMER_DEF(button_press_timer_id);
 //APP_TIMER_DEF(micros_cnt_id);
 // drv timer instantiation
 #define TIMER_INSTANCE 1
@@ -144,7 +157,7 @@ extern bno055_interrupt_s bno055_interrupt;
  * ==================================================================== */
 void advertising_start(void);
 void timers_start(void);
-
+void button_press_timer_start(void);
 
 /**@brief Function for assert macro callback.
  *
@@ -178,6 +191,22 @@ static void imu_poll_int_handler(void * p_context)
 	bno055_interrupt.new_value = true;
 }
 
+static void button_press_timeout_handler(void * p_context)
+{
+	uint8_t button_state = 0;
+	if(app_button_is_pushed(0)) button_state |= 0x01;
+	if(app_button_is_pushed(1)) button_state |= 0x10;
+	if(app_debug_level) {
+		NRF_LOG_INFO("Button long press timeout!! Button state = 0x%02x\n\r", button_state);
+	}
+	if(button_state == button_mask) {
+		if(app_debug_level) {
+			NRF_LOG_INFO("LONG PRESS!!\n\r");
+		}
+	}
+	button_mask = 0;
+}
+
 static void timer_delta_us_handler(nrf_timer_event_t event_type, void * p_context)
 {
 	nrf_drv_timer_clear(&TIMER_DELTA_US);
@@ -201,7 +230,9 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
         case LEDBUTTON_BUTTON1_PIN:
 			if(button_action) send_value |= 0xFF;
 			else send_value &= 0xFF00;
-            NRF_LOG_INFO("Bt1... sending %#x\r\n", send_value);
+			if(app_debug_level) {
+				NRF_LOG_INFO("Bt1... sending %#x\r\n", send_value);
+			}
 //			int32_t * tosend1;
 //			tosend1 = &ms58_output.pressure;
 //			err_code = ble_smss_on_press_value(&m_smss_service, tosend1);
@@ -212,12 +243,31 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
             {
                 APP_ERROR_CHECK(err_code);
             }
+			
+			if(button_action) button_mask |= 0x01;
+			else button_mask &= 0xF0;
+			
+			if(app_debug_level) {
+				NRF_LOG_INFO("Stopping button timer... mask = 0x%02x\n\r", button_mask);
+			}
+			app_timer_stop(button_press_timer_id);
+			if(button_mask != 0) {
+				if(app_debug_level) {
+					NRF_LOG_INFO("Re-starting button timer...\n\r");
+				}
+				app_timer_start(button_press_timer_id,
+					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_BUTTON_LONG_PRESS_MS, UNIT_1_00_MS), 0),
+					NULL);		
+			}
+			
             break;
 
 		case LEDBUTTON_BUTTON2_PIN:
 			if(button_action) send_value |= 0xFF00;
 			else send_value &= 0x00FF;
-			NRF_LOG_INFO("Bt2... sending %#x\r\n", send_value);
+			if(app_debug_level){
+				NRF_LOG_INFO("Bt2... sending %#x\r\n", send_value);
+			}
 //			uint32_t * tosend2;
 //			tosend2 = (uint32_t*)&bno055_output.grv[0].b;
 //			err_code = ble_smss_on_imu_value(&m_smss_service, tosend2);
@@ -228,6 +278,23 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
 			{
 				APP_ERROR_CHECK(err_code);
 			}
+
+			if(button_action) button_mask |= 0x10;
+			else button_mask &= 0x0F;
+			
+			if(app_debug_level) {
+				NRF_LOG_INFO("Stopping button timer... mask = 0x%02x\n\r", button_mask);
+			}
+			app_timer_stop(button_press_timer_id);
+			if(button_mask != 0) {
+				if(app_debug_level) {
+					NRF_LOG_INFO("Re-starting button timer...\n\r");
+				}
+				app_timer_start(button_press_timer_id,
+					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_BUTTON_LONG_PRESS_MS, UNIT_1_00_MS), 0),
+					NULL);		
+			}
+
 			break;
 		
         default:
@@ -320,7 +387,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_CONNECTED:
-			if(appDebug) {
+			if(app_debug_level) {
 				NRF_LOG_INFO("Connected\r\n");
 			}
 //            bsp_board_led_on(CONNECTED_LED_PIN);
@@ -335,7 +402,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
             break; // BLE_GAP_EVT_CONNECTED
 
         case BLE_GAP_EVT_DISCONNECTED:
-			if(appDebug) {
+			if(app_debug_level) {
 				NRF_LOG_INFO("Disconnected\r\n");
 			}
 //            bsp_board_led_off(CONNECTED_LED_PIN);
@@ -364,7 +431,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 
         case BLE_GATTC_EVT_TIMEOUT:
             // Disconnect on GATT Client timeout event.
-			if(appDebug) {
+			if(app_debug_level) {
 				NRF_LOG_DEBUG("GATT Client Timeout.\r\n");
 			}
             err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gattc_evt.conn_handle,
@@ -374,7 +441,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 
         case BLE_GATTS_EVT_TIMEOUT:
             // Disconnect on GATT Server timeout event.
-			if(appDebug) {
+			if(app_debug_level) {
 				NRF_LOG_DEBUG("GATT Server Timeout.\r\n");
 			}
             err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gatts_evt.conn_handle,
@@ -641,11 +708,11 @@ static void app_update_function(ble_smss_t * p_smss, uint8_t *data)
 						(data[1] << 8) +
 						(data[2] << 16) +
 						(data[3] << 24));
-	if(appDebug) {
+	if(app_debug_level) {
 	NRF_LOG_INFO("Received app update command: %#x\n\r", command);
 	}
 	if(command == 0x00) {
-		if(appDebug) {
+		if(app_debug_level) {
 			NRF_LOG_INFO("Restarting device with 3 min bootloader...\n\r");
 		}
 		bootloader_start(p_smss->conn_handle);
@@ -755,7 +822,7 @@ void advertising_start(void)
 
 
 /* ====================================================================
- * RUN-TIMER FUNCTIONS
+ * RUN-TIME FUNCTIONS
  * --------------------------------------------------------------------
  *
  * ==================================================================== */
@@ -770,6 +837,11 @@ static void timers_create(void)
 	err_code = app_timer_create(&imu_poll_int_id,
 								APP_TIMER_MODE_REPEATED,
 								imu_poll_int_handler);
+	APP_ERROR_CHECK(err_code);
+	
+	err_code = app_timer_create(&button_press_timer_id,
+								APP_TIMER_MODE_SINGLE_SHOT,
+								button_press_timeout_handler);
 	APP_ERROR_CHECK(err_code);
 }
 
@@ -786,7 +858,7 @@ static void power_manage(void)
 
 void timers_start(void)
 {
-	if(appDebug) {
+	if(app_debug_level) {
 		NRF_LOG_INFO("Starting poll timers...\n\r");
 	}
 	app_timer_start(pressure_poll_int_id,
@@ -794,6 +866,13 @@ void timers_start(void)
 					NULL);
 	app_timer_start(imu_poll_int_id,
 					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_IMU_POLL_MS, UNIT_1_00_MS), 0),
+					NULL);
+}
+
+void button_press_timer_start(void)
+{
+	app_timer_start(button_press_timer_id,
+					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_BUTTON_LONG_PRESS_MS, UNIT_1_00_MS), 0),
 					NULL);
 }
 
@@ -818,9 +897,10 @@ int main(void)
     advertising_init();
     conn_params_init();
 
-	if(appDebug) {
+//	if(app_debug_level > 0) {
+	NRF_LOG_INFO("APP debug level: 0x%02x\n\r", app_debug_level);
 		NRF_LOG_INFO("Initializing hardware...\n\r");
-	}
+//	}
 	spi_init();
 	twi_init();
 	
@@ -829,18 +909,18 @@ int main(void)
 	
 	// Initialize & configure peripherals
 	pressure_startup();
-	if(appDebug) {
+	if(app_debug_level) {
 		NRF_LOG_INFO("MS58 enabled? %d\r\n\n", ms58_config.dev_en);
 	}
 	
 	imu_startup();
-	if(appDebug) {
+	if(app_debug_level) {
 		NRF_LOG_INFO("BNO055 enabled? %d\r\n\n", bno055_config.dev_en);
 	}
 	if(bno055_config.dev_en) {
 		imu_configure();
 		imu_check_cal();
-		if(appDebug) {
+		if(app_debug_level) {
 			NRF_LOG_INFO("System calibration: %d\n\r",
 						((0xC0 & bno055_config.cal_state) >> 6));
 			NRF_LOG_INFO("Gyro   calibration: %d\n\r",
@@ -855,7 +935,7 @@ int main(void)
 	
 	
 	// Start advertising
-	if(appDebug) {
+	if(app_debug_level) {
 		NRF_LOG_INFO("Starting SMS sensors!\r\n");
 	}
     bsp_board_led_on(ADVERTISING_LED_PIN);
