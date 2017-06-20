@@ -48,6 +48,12 @@
 #define CENTRAL_LINK_COUNT              0										/**< Number of central links used by the application. When changing this number remember to adjust the RAM settings*/
 #define PERIPHERAL_LINK_COUNT           1										/**< Number of peripheral links used by the application. When changing this number remember to adjust the RAM settings*/
 
+#if APP_DEBUG
+bool appDebug = true;
+#else
+bool appDebug = false;
+#endif
+
 #if (NRF_SD_BLE_API_VERSION == 3)
 #define NRF_BLE_MAX_MTU_SIZE            GATT_MTU_SIZE_DEFAULT					/**< MTU size used in the softdevice enabling and to reply to a BLE_GATTS_EVT_EXCHANGE_MTU_REQUEST event. */
 #endif
@@ -314,7 +320,9 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_CONNECTED:
-            NRF_LOG_INFO("Connected\r\n");
+			if(appDebug) {
+				NRF_LOG_INFO("Connected\r\n");
+			}
 //            bsp_board_led_on(CONNECTED_LED_PIN);
             bsp_board_led_off(ADVERTISING_LED_PIN);
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
@@ -327,7 +335,9 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
             break; // BLE_GAP_EVT_CONNECTED
 
         case BLE_GAP_EVT_DISCONNECTED:
-            NRF_LOG_INFO("Disconnected\r\n");
+			if(appDebug) {
+				NRF_LOG_INFO("Disconnected\r\n");
+			}
 //            bsp_board_led_off(CONNECTED_LED_PIN);
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
 
@@ -354,7 +364,9 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 
         case BLE_GATTC_EVT_TIMEOUT:
             // Disconnect on GATT Client timeout event.
-            NRF_LOG_DEBUG("GATT Client Timeout.\r\n");
+			if(appDebug) {
+				NRF_LOG_DEBUG("GATT Client Timeout.\r\n");
+			}
             err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gattc_evt.conn_handle,
                                              BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
             APP_ERROR_CHECK(err_code);
@@ -362,7 +374,9 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 
         case BLE_GATTS_EVT_TIMEOUT:
             // Disconnect on GATT Server timeout event.
-            NRF_LOG_DEBUG("GATT Server Timeout.\r\n");
+			if(appDebug) {
+				NRF_LOG_DEBUG("GATT Server Timeout.\r\n");
+			}
             err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gatts_evt.conn_handle,
                                              BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
             APP_ERROR_CHECK(err_code);
@@ -627,9 +641,13 @@ static void app_update_function(ble_smss_t * p_smss, uint8_t *data)
 						(data[1] << 8) +
 						(data[2] << 16) +
 						(data[3] << 24));
+	if(appDebug) {
 	NRF_LOG_INFO("Received app update command: %#x\n\r", command);
-	if(command == 0x1c575abe) {
-		NRF_LOG_INFO("Restarting device with 3 min bootloader...\n\r");
+	}
+	if(command == 0x00) {
+		if(appDebug) {
+			NRF_LOG_INFO("Restarting device with 3 min bootloader...\n\r");
+		}
 		bootloader_start(p_smss->conn_handle);
 	}
 }
@@ -768,7 +786,9 @@ static void power_manage(void)
 
 void timers_start(void)
 {
-	NRF_LOG_INFO("Starting poll timers...\n\r");
+	if(appDebug) {
+		NRF_LOG_INFO("Starting poll timers...\n\r");
+	}
 	app_timer_start(pressure_poll_int_id,
 					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_PRESSURE_POLL_MS, UNIT_1_00_MS), 0),
 					NULL);
@@ -798,7 +818,9 @@ int main(void)
     advertising_init();
     conn_params_init();
 
-	NRF_LOG_INFO("Initializing hardware...\n\r");
+	if(appDebug) {
+		NRF_LOG_INFO("Initializing hardware...\n\r");
+	}
 	spi_init();
 	twi_init();
 	
@@ -807,27 +829,35 @@ int main(void)
 	
 	// Initialize & configure peripherals
 	pressure_startup();
-	NRF_LOG_INFO("MS58 enabled? %d\r\n\n", ms58_config.dev_en);
+	if(appDebug) {
+		NRF_LOG_INFO("MS58 enabled? %d\r\n\n", ms58_config.dev_en);
+	}
 	
 	imu_startup();
-	NRF_LOG_INFO("BNO055 enabled? %d\r\n\n", bno055_config.dev_en);
+	if(appDebug) {
+		NRF_LOG_INFO("BNO055 enabled? %d\r\n\n", bno055_config.dev_en);
+	}
 	if(bno055_config.dev_en) {
 		imu_configure();
 		imu_check_cal();
-		NRF_LOG_INFO("System calibration: %d\n\r",
-					((0xC0 & bno055_config.cal_state) >> 6));
-		NRF_LOG_INFO("Gyro   calibration: %d\n\r",
-					((0x30 & bno055_config.cal_state) >> 4));
-		NRF_LOG_INFO("Accel  calibration: %d\n\r",
-					((0x0C & bno055_config.cal_state) >> 2));
-		NRF_LOG_INFO("Mag    calibration: %d\n\r",
-					((0x03 & bno055_config.cal_state) >> 0));
+		if(appDebug) {
+			NRF_LOG_INFO("System calibration: %d\n\r",
+						((0xC0 & bno055_config.cal_state) >> 6));
+			NRF_LOG_INFO("Gyro   calibration: %d\n\r",
+						((0x30 & bno055_config.cal_state) >> 4));
+			NRF_LOG_INFO("Accel  calibration: %d\n\r",
+						((0x0C & bno055_config.cal_state) >> 2));
+			NRF_LOG_INFO("Mag    calibration: %d\n\r",
+						((0x03 & bno055_config.cal_state) >> 0));
+		}
 		imu_initialize();
 	}
 	
 	
 	// Start advertising
-    NRF_LOG_INFO("Starting SMS sensors!\r\n");
+	if(appDebug) {
+		NRF_LOG_INFO("Starting SMS sensors!\r\n");
+	}
     bsp_board_led_on(ADVERTISING_LED_PIN);
 	err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
 	APP_ERROR_CHECK(err_code);
@@ -849,9 +879,9 @@ int main(void)
 			if(ms58_output.complete) {
 				ms58_output.complete = false;
 				pressure_calculate();
-				NRF_LOG_INFO("Press/Temp: %#x/%#x\n\r",
-								ms58_output.pressure,
-								ms58_output.temperature);
+//				NRF_LOG_INFO("Press/Temp: %#x/%#x\n\r",
+//								ms58_output.pressure,
+//								ms58_output.temperature);
 				ms58_interrupt.rts = true;
 			}
 			else {

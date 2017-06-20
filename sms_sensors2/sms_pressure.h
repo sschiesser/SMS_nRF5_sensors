@@ -9,6 +9,7 @@
 
 #define SMS_PRESSURE_POLL_MS		49
 
+extern bool appDebug;
 
 void pressure_startup(void);
 void pressure_read_data(void);

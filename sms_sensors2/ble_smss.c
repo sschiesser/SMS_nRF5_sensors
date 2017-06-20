@@ -139,10 +139,12 @@ static uint32_t button_char_add(ble_smss_t * p_smss)
 												&p_smss->button_char_handles);
 	APP_ERROR_CHECK(err_code);
 
-	NRF_LOG_INFO("Button characteristic added\n\r");
-    NRF_LOG_INFO("- service handle: %#x\n\r", p_smss->service_handle);
-    NRF_LOG_INFO("- char value handle: %#x\r\n", p_smss->button_char_handles.value_handle);
-    NRF_LOG_INFO("- char cccd handle: %#x\r\n\r\n", p_smss->button_char_handles.cccd_handle);
+	if(appDebug) {
+		NRF_LOG_INFO("Button characteristic added\n\r");
+		NRF_LOG_INFO("- service handle: %#x\n\r", p_smss->service_handle);
+		NRF_LOG_INFO("- char value handle: %#x\r\n", p_smss->button_char_handles.value_handle);
+		NRF_LOG_INFO("- char cccd handle: %#x\r\n\r\n", p_smss->button_char_handles.cccd_handle);
+	}
 	
 	return NRF_SUCCESS;
 }
@@ -207,11 +209,13 @@ static uint32_t press_char_add(ble_smss_t * p_smss)
                                        &p_smss->press_char_handles);
     APP_ERROR_CHECK(err_code);
     
-	NRF_LOG_INFO("Pressure characteristic added\n\r");
-    NRF_LOG_INFO("- service handle: %#x\n\r", p_smss->service_handle);
-    NRF_LOG_INFO("- char value handle: %#x\r\n", p_smss->press_char_handles.value_handle);
-    NRF_LOG_INFO("- char cccd handle: %#x\r\n\r\n", p_smss->press_char_handles.cccd_handle);
-
+	if(appDebug) {
+		NRF_LOG_INFO("Pressure characteristic added\n\r");
+		NRF_LOG_INFO("- service handle: %#x\n\r", p_smss->service_handle);
+		NRF_LOG_INFO("- char value handle: %#x\r\n", p_smss->press_char_handles.value_handle);
+		NRF_LOG_INFO("- char cccd handle: %#x\r\n\r\n", p_smss->press_char_handles.cccd_handle);
+	}
+	
     return NRF_SUCCESS;
 }
 
@@ -270,10 +274,12 @@ static uint32_t imu_char_add(ble_smss_t * p_smss)
 												&p_smss->imu_char_handles);
 	APP_ERROR_CHECK(err_code);
 
-	NRF_LOG_INFO("IMU characteristic added\n\r");
-    NRF_LOG_INFO("- service handle: %#x\n\r", p_smss->service_handle);
-    NRF_LOG_INFO("- char value handle: %#x\r\n", p_smss->imu_char_handles.value_handle);
-    NRF_LOG_INFO("- char cccd handle: %#x\r\n\r\n", p_smss->imu_char_handles.cccd_handle);
+	if(appDebug) {
+		NRF_LOG_INFO("IMU characteristic added\n\r");
+		NRF_LOG_INFO("- service handle: %#x\n\r", p_smss->service_handle);
+		NRF_LOG_INFO("- char value handle: %#x\r\n", p_smss->imu_char_handles.value_handle);
+		NRF_LOG_INFO("- char cccd handle: %#x\r\n\r\n", p_smss->imu_char_handles.cccd_handle);
+	}
 	
 	return NRF_SUCCESS;
 }
@@ -334,10 +340,12 @@ static uint32_t app_update_char_add(ble_smss_t * p_smss)
 												&p_smss->app_update_handles);
 	APP_ERROR_CHECK(err_code);
 
-	NRF_LOG_INFO("Application update characteristic added\n\r");
-    NRF_LOG_INFO("- service handle: %#x\n\r", p_smss->service_handle);
-    NRF_LOG_INFO("- char value handle: %#x\r\n", p_smss->app_update_handles.value_handle);
-    NRF_LOG_INFO("- char cccd handle: %#x\r\n\r\n", p_smss->app_update_handles.cccd_handle);
+	if(appDebug) {
+		NRF_LOG_INFO("Application update characteristic added\n\r");
+		NRF_LOG_INFO("- service handle: %#x\n\r", p_smss->service_handle);
+		NRF_LOG_INFO("- char value handle: %#x\r\n", p_smss->app_update_handles.value_handle);
+		NRF_LOG_INFO("- char cccd handle: %#x\r\n\r\n", p_smss->app_update_handles.cccd_handle);
+	}
 	
 	return NRF_SUCCESS;
 }

@@ -28,6 +28,8 @@
 
 #define PI						(3.1415926535897932384626433832795)
 
+extern bool appDebug;
+
 //void bno055_reset(void);
 //int bno055_check(void);
 void imu_startup(void);

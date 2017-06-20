@@ -774,6 +774,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\ble_smss.c</FilePath>
             </File>
+            <File>
+              <FileName>ble_bas.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\components\ble\ble_services\ble_bas\ble_bas.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -2535,6 +2540,11 @@
               <FileName>ble_smss.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\ble_smss.c</FilePath>
+            </File>
+            <File>
+              <FileName>ble_bas.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\components\ble\ble_services\ble_bas\ble_bas.c</FilePath>
             </File>
           </Files>
         </Group>

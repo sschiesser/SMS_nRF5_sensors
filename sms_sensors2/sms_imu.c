@@ -64,19 +64,27 @@ static uint8_t bno055_check(void)
 {
 	int ret = 0x0F;
 	uint8_t c = readByte(BNO055_ADDRESS, BNO055_CHIP_ID);
-	NRF_LOG_INFO("Device returned 0x%02x\r\n", c);
+	if(appDebug) {
+		NRF_LOG_INFO("Device returned 0x%02x\r\n", c);
+	}
 	if(c == 0xA0) ret = 0x07;
 	nrf_delay_ms(500);
 	c = readByte(BNO055_ADDRESS, BNO055_ACC_ID);
-	NRF_LOG_INFO("Accelerometer returned 0x%02x\r\n", c);
+	if(appDebug) {
+		NRF_LOG_INFO("Accelerometer returned 0x%02x\r\n", c);
+	}
 	if(c == 0xFB) ret = 0x03;
 	nrf_delay_ms(500);
 	c = readByte(BNO055_ADDRESS, BNO055_MAG_ID);
-	NRF_LOG_INFO("Magnetometer returned 0x%02x\r\n", c);
+	if(appDebug) {
+		NRF_LOG_INFO("Magnetometer returned 0x%02x\r\n", c);
+	}
 	if(c == 0x32) ret = 0x01;
 	nrf_delay_ms(500);
 	c = readByte(BNO055_ADDRESS, BNO055_GYRO_ID);
-	NRF_LOG_INFO("Gyroscope returned 0x%02x\r\n", c);
+	if(appDebug) {
+		NRF_LOG_INFO("Gyroscope returned 0x%02x\r\n", c);
+	}
 	if(c == 0x0F) ret = 0;
 	nrf_delay_ms(500);
 	
@@ -90,24 +98,28 @@ static int bno055_test(void)
 	// Check software revision ID
 	uint8_t swlsb = readByte(BNO055_ADDRESS, BNO055_SW_REV_ID_LSB);
 	uint8_t swmsb = readByte(BNO055_ADDRESS, BNO055_SW_REV_ID_MSB);
-	NRF_LOG_INFO("Software revision ID: %02x.%02x\r\n", swmsb, swlsb);
+	if(appDebug) {
+		NRF_LOG_INFO("Software revision ID: %02x.%02x\r\n", swmsb, swlsb);
+	}
 	
 	// Check bootloader version
 	uint8_t blid = readByte(BNO055_ADDRESS, BNO055_BL_REV_ID);
-	NRF_LOG_INFO("Bootloader version: %d\r\n", blid);
+	if(appDebug) {
+		NRF_LOG_INFO("Bootloader version: %d\r\n", blid);
+	}
 	
 	// Check self-test results
 	uint8_t selftest = readByte(BNO055_ADDRESS, BNO055_ST_RESULT);
-	if(selftest & 0x01) {
+	if((selftest & 0x01) && (appDebug)) {
 		NRF_LOG_INFO("Accelerometer passed selftest\r\n");
 	}
-	if(selftest & 0x02) {
+	if((selftest & 0x02) && (appDebug)) {
 		NRF_LOG_INFO("Magnetometer passed selftest\r\n");
 	}
-	if(selftest & 0x04) {
+	if((selftest & 0x04) && (appDebug)) {
 		NRF_LOG_INFO("Gyroscope passed selftest\r\n");
 	}
-	if(selftest & 0x08) {
+	if((selftest & 0x08) && (appDebug)) {
 		NRF_LOG_INFO("MCU passed selftest\r\n");
 	}
 	
@@ -130,7 +142,9 @@ static void bno055_init_config_values(void)
 	bno055_config.m_odr = MODR_30Hz;	// Select magnetometer ODR when in BNO055 bypass mode
 	bno055_config.pwr_mode = Normalpwr;	// Select BNO055 power mode
 	bno055_config.opr_mode = NDOF;		// specify operation mode for sensors
-	NRF_LOG_INFO("BNO055 config values initialized\r\n");
+	if(appDebug) {
+		NRF_LOG_INFO("BNO055 config values initialized\r\n");
+	}
 }
 
 static void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
@@ -139,7 +153,9 @@ static void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
 	uint16_t ii = 0, sample_count = 0;
 	int32_t gyro_bias[3]  = {0, 0, 0}, accel_bias[3] = {0, 0, 0};
 
-	NRF_LOG_INFO("Accel/Gyro Calibration: Put device on a level surface and keep motionless! Wait......");
+	if(appDebug) {
+		NRF_LOG_INFO("Accel/Gyro Calibration: Put device on a level surface and keep motionless! Wait......");
+	}
 	nrf_delay_ms(4000);
   
 	// Select page 0 to read sensors
@@ -211,11 +227,13 @@ static void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
 	writeByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_Z_MSB, ((int16_t)accel_bias[2] >> 8) & 0xFF);
 
 	// Check that offsets were properly written to offset registers
-//	NRF_LOG_INFO("Average accelerometer bias = %d, %d, %d\n",\
-//						(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_X_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_X_LSB)),\
-//						(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_Y_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_Y_LSB)),\
-//						(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_Z_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_Z_LSB)));
-
+	if(appDebug) {
+		NRF_LOG_INFO("Average accelerometer bias = %d, %d, %d\n",\
+			(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_X_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_X_LSB)),\
+			(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_Y_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_Y_LSB)),\
+			(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_Z_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_Z_LSB)));
+	}
+	
 	//write biases to gyro offset registers
 	writeByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_X_LSB, (int16_t)gyro_bias[0] & 0xFF);
 	writeByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_X_MSB, ((int16_t)gyro_bias[0] >> 8) & 0xFF);
@@ -228,14 +246,18 @@ static void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
 	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, bno055_config.opr_mode );
 
 	// Check that offsets were properly written to offset registers
-//	NRF_LOG_INFO("Average gyro bias = %d, %d, %d\n",\
-//						(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_X_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_X_LSB)),\
-//						(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Y_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Y_LSB)),\
-//						(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Z_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Z_LSB)));
-
+	if(appDebug) {
+		NRF_LOG_INFO("Average gyro bias = %d, %d, %d\n",\
+			(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_X_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_X_LSB)),\
+			(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Y_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Y_LSB)),\
+			(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Z_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Z_LSB)));
+	}
+	
 	nrf_delay_ms(1000);
 	
-	NRF_LOG_INFO("Accel/Gyro Calibration done!\r\n");
+	if(appDebug) {
+		NRF_LOG_INFO("Accel/Gyro Calibration done!\r\n");
+	}
 }
 
 static void bno055_calibrate_mag(float *dest1)
@@ -245,7 +267,9 @@ static void bno055_calibrate_mag(float *dest1)
 	int32_t mag_bias[3] = {0, 0, 0};
 	int16_t mag_max[3] = {0, 0, 0}, mag_min[3] = {0, 0, 0};
 
-	NRF_LOG_INFO("Mag Calibration: Wave device in a figure eight until done!");
+	if(appDebug) {
+		NRF_LOG_INFO("Mag Calibration: Wave device in a figure eight until done!");
+	}
 	nrf_delay_ms(4000);
 
 	// Select page 0 to read sensors
@@ -275,10 +299,12 @@ static void bno055_calibrate_mag(float *dest1)
 		nrf_delay_ms(105);  // at 10 Hz ODR, new mag data is available every 100 ms
 	}
 
-	NRF_LOG_INFO("mag x min/max: %d, %d\r\n", mag_min[0], mag_max[0]);
-	NRF_LOG_INFO("mag y min/max: %d, %d\r\n", mag_min[1], mag_max[1]);
-	NRF_LOG_INFO("mag z min/max: %d, %d\r\n", mag_min[2], mag_max[2]);
-
+	if(appDebug) {
+		NRF_LOG_INFO("mag x min/max: %d, %d\r\n", mag_min[0], mag_max[0]);
+		NRF_LOG_INFO("mag y min/max: %d, %d\r\n", mag_min[1], mag_max[1]);
+		NRF_LOG_INFO("mag z min/max: %d, %d\r\n", mag_min[2], mag_max[2]);
+	}
+	
 	mag_bias[0]  = (mag_max[0] + mag_min[0])/2;  // get average x mag bias in counts
 	mag_bias[1]  = (mag_max[1] + mag_min[1])/2;  // get average y mag bias in counts
 	mag_bias[2]  = (mag_max[2] + mag_min[2])/2;  // get average z mag bias in counts
@@ -301,18 +327,22 @@ static void bno055_calibrate_mag(float *dest1)
 	writeByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_Z_MSB, ((int16_t)mag_bias[2] >> 8) & 0xFF);
 
 	// Check that offsets were properly written to offset registers
-//	NRF_LOG_INFO("Average magnetometer bias = %d, %d, %d\n",\
-//						(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_X_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_X_LSB)),\
-//						(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_Y_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_Y_LSB)),\
-//						(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_Z_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_Z_LSB)));
-
+	if(appDebug) {
+		NRF_LOG_INFO("Average magnetometer bias = %d, %d, %d\n",\
+			(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_X_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_X_LSB)),\
+			(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_Y_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_Y_LSB)),\
+			(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_Z_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_Z_LSB)));
+	}
+	
 	// Select BNO055 system operation mode
 	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, bno055_config.opr_mode);
 	nrf_delay_ms(25);
 
 	nrf_delay_ms(1000);
 	
-	NRF_LOG_INFO("Mag Calibration done!\r\n");
+	if(appDebug) {
+		NRF_LOG_INFO("Mag Calibration done!\r\n");
+	}
 }
 
 
