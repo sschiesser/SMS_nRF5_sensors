@@ -17,9 +17,8 @@ ms58_interrupt_s ms58_interrupt;
 
 static void ms58_reset(void)
 {
-	if(app_debug_level) {
-		NRF_LOG_INFO("Resetting MS58\n\r");
-	}
+	NRF_LOG_DEBUG("Resetting MS58\n\r");
+
 	uint8_t tx_len = 1;
 	uint8_t rx_len = 0;
 	memset(m_rx_buf, 0, rx_len);
@@ -112,13 +111,9 @@ void pressure_startup(void)
 	
 	// Roughly test PROM values
 	for(uint8_t i = 1; i < 7; i++) {
-		if(app_debug_level) {
-			NRF_LOG_INFO("MS58 PROM value %d: 0x%x\n\r", i, ms58_output.prom_values[i]);
-		}
+		NRF_LOG_DEBUG("MS58 PROM value %d: 0x%x\n\r", i, ms58_output.prom_values[i]);
 		if((ms58_output.prom_values[i] == 0) || (ms58_output.prom_values[i] == 0xff)) {
-			if(app_debug_level) {
-				NRF_LOG_INFO("MS58 PROM suspect value: 0x%#x\r\n", ms58_output.prom_values[i]);
-			}
+			NRF_LOG_INFO("MS58 PROM suspect value: 0x%#x\r\n", ms58_output.prom_values[i]);
 			ms58_config.init_ok = false;
 		}
 	}
@@ -145,11 +140,9 @@ void pressure_read_data(void)
 	if(ms58_output.complete) {
 		ms58_output.adc_values[MS58_TYPE_PRESS] = \
 				((m_rx_buf[1] << 16) | (m_rx_buf[2] << 8) | (m_rx_buf[3]));
-		if(app_debug_level) {
-			NRF_LOG_INFO("Getting Pressure... 0x%x (%d)\n\r",
-						ms58_output.adc_values[MS58_TYPE_PRESS],
-						ms58_output.adc_values[MS58_TYPE_PRESS]);
-		}
+		NRF_LOG_INFO("Getting Pressure... 0x%x (%d)\n\r",
+				ms58_output.adc_values[MS58_TYPE_PRESS],
+				ms58_output.adc_values[MS58_TYPE_PRESS]);
 		m_tx_buf[0] = MS58_CONV_D2_4096;
 	}
 	else {

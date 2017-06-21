@@ -58,7 +58,6 @@ extern "C" {
 //#define SMSS_UUID_PRESS_CHAR  0x1526
 //#define SMSS_UUID_IMU_CHAR	  0x1527
 			
-extern uint8_t app_debug_level;
 							  
 typedef struct ble_smss_s ble_smss_t;
 							  

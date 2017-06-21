@@ -105,29 +105,6 @@
 // </h> 
 //==========================================================
 
-//==========================================================
-// <e> APP_DEBUG - debug flag
-//==========================================================
-
-#ifndef APP_DEBUG
-#define APP_DEBUG 1
-#endif
-#if APP_DEBUG
-// <o> APP_DEBUG_LEVEL - debug level
- 
-// <564295870=> error
-// <6257285=> development
-// <551781300=> info 
-
-#ifndef APP_DEBUG_LEVEL
-#define APP_DEVG_LEVEL -551781300
-#endif
-
-#endif
-
-// </e>
-//==========================================================
-
 // </h> 
 //==========================================================
 
@@ -3742,7 +3719,7 @@
 // <4=> Debug 
 
 #ifndef NRF_LOG_DEFAULT_LEVEL
-#define NRF_LOG_DEFAULT_LEVEL 3
+#define NRF_LOG_DEFAULT_LEVEL 4
 #endif
 
 // <e> NRF_LOG_DEFERRED - Enable deffered logger.

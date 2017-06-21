@@ -48,20 +48,9 @@
 #define CENTRAL_LINK_COUNT              0										/**< Number of central links used by the application. When changing this number remember to adjust the RAM settings*/
 #define PERIPHERAL_LINK_COUNT           1										/**< Number of peripheral links used by the application. When changing this number remember to adjust the RAM settings*/
 
-#define APP_DEBUG_LEVEL_ERROR			0xff
-#define APP_DEBUG_LEVEL_DEVELOPMENT		0xfe
-#define APP_DEBUG_LEVEL_INFO			0xfd
-
-uint8_t app_debug_level = 0;
-#if APP_DEBUG
-#if (APP_DEBUG_LEVEL == 564295870)
-app_debug_level = APP_DEBUG_LEVEL_ERROR;
-#elif (APP_DEBUG_LEVEL == 6257285)
-app_debug_level = APP_DEBUG_LEVEL_DEVELOPMENT;
-#elif (APP_DEBUG_LEVEL == 551781300)
-app_debug_level = APP_DEBUG_LEVEL_INFO;
-#endif
-#endif
+#define SMS_VERSION_ID					0x0101									/**< SMS Version:	MSB --> device ID (01 -> sensors, 02 -> remote, 03 -> central)
+																									LSB --> version.subversion (2E -> 2.15) */
+#define SMS_RELEASE_ID					001																									
 
 #if (NRF_SD_BLE_API_VERSION == 3)
 #define NRF_BLE_MAX_MTU_SIZE            GATT_MTU_SIZE_DEFAULT					/**< MTU size used in the softdevice enabling and to reply to a BLE_GATTS_EVT_EXCHANGE_MTU_REQUEST event. */
@@ -196,13 +185,10 @@ static void button_press_timeout_handler(void * p_context)
 	uint8_t button_state = 0;
 	if(app_button_is_pushed(0)) button_state |= 0x01;
 	if(app_button_is_pushed(1)) button_state |= 0x10;
-	if(app_debug_level) {
-		NRF_LOG_INFO("Button long press timeout!! Button state = 0x%02x\n\r", button_state);
-	}
+	NRF_LOG_INFO("Button long press timeout!! Button state = 0x%02x\n\r", button_state);
+
 	if(button_state == button_mask) {
-		if(app_debug_level) {
-			NRF_LOG_INFO("LONG PRESS!!\n\r");
-		}
+		NRF_LOG_INFO("LONG PRESS!!\n\r");
 	}
 	button_mask = 0;
 }
@@ -230,16 +216,15 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
         case LEDBUTTON_BUTTON1_PIN:
 			if(button_action) send_value |= 0xFF;
 			else send_value &= 0xFF00;
-			if(app_debug_level) {
-				NRF_LOG_INFO("Bt1... sending %#x\r\n", send_value);
-			}
+			NRF_LOG_INFO("Bt1... sending %#x\r\n", send_value);
 //			int32_t * tosend1;
 //			tosend1 = &ms58_output.pressure;
 //			err_code = ble_smss_on_press_value(&m_smss_service, tosend1);
             err_code = ble_smss_on_button_change(&m_smss_service, send_value);
-            if (err_code != NRF_SUCCESS &&
-                err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
-                err_code != NRF_ERROR_INVALID_STATE)
+            if (err_code != NRF_SUCCESS &&						// 0x0000
+                err_code != BLE_ERROR_INVALID_CONN_HANDLE &&	// 0x3002
+                err_code != NRF_ERROR_INVALID_STATE &&			// 0x0008
+				err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)	// 0x3401
             {
                 APP_ERROR_CHECK(err_code);
             }
@@ -247,14 +232,10 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
 			if(button_action) button_mask |= 0x01;
 			else button_mask &= 0xF0;
 			
-			if(app_debug_level) {
-				NRF_LOG_INFO("Stopping button timer... mask = 0x%02x\n\r", button_mask);
-			}
+			NRF_LOG_INFO("Stopping button timer... mask = 0x%02x\n\r", button_mask);
 			app_timer_stop(button_press_timer_id);
 			if(button_mask != 0) {
-				if(app_debug_level) {
-					NRF_LOG_INFO("Re-starting button timer...\n\r");
-				}
+				NRF_LOG_INFO("Re-starting button timer...\n\r");
 				app_timer_start(button_press_timer_id,
 					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_BUTTON_LONG_PRESS_MS, UNIT_1_00_MS), 0),
 					NULL);		
@@ -265,16 +246,15 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
 		case LEDBUTTON_BUTTON2_PIN:
 			if(button_action) send_value |= 0xFF00;
 			else send_value &= 0x00FF;
-			if(app_debug_level){
-				NRF_LOG_INFO("Bt2... sending %#x\r\n", send_value);
-			}
+			NRF_LOG_INFO("Bt2... sending %#x\r\n", send_value);
 //			uint32_t * tosend2;
 //			tosend2 = (uint32_t*)&bno055_output.grv[0].b;
 //			err_code = ble_smss_on_imu_value(&m_smss_service, tosend2);
 			err_code = ble_smss_on_button_change(&m_smss_service, send_value);
-			if(err_code != NRF_SUCCESS &&
-			   err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
-			   err_code != NRF_ERROR_INVALID_STATE)
+			if (err_code != NRF_SUCCESS &&						// 0x0000
+				err_code != BLE_ERROR_INVALID_CONN_HANDLE &&	// 0x3002
+				err_code != NRF_ERROR_INVALID_STATE &&			// 0x0008
+				err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)	// 0x3401
 			{
 				APP_ERROR_CHECK(err_code);
 			}
@@ -282,14 +262,10 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
 			if(button_action) button_mask |= 0x10;
 			else button_mask &= 0x0F;
 			
-			if(app_debug_level) {
-				NRF_LOG_INFO("Stopping button timer... mask = 0x%02x\n\r", button_mask);
-			}
+			NRF_LOG_INFO("Stopping button timer... mask = 0x%02x\n\r", button_mask);
 			app_timer_stop(button_press_timer_id);
 			if(button_mask != 0) {
-				if(app_debug_level) {
-					NRF_LOG_INFO("Re-starting button timer...\n\r");
-				}
+				NRF_LOG_INFO("Re-starting button timer...\n\r");
 				app_timer_start(button_press_timer_id,
 					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_BUTTON_LONG_PRESS_MS, UNIT_1_00_MS), 0),
 					NULL);		
@@ -387,9 +363,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_CONNECTED:
-			if(app_debug_level) {
-				NRF_LOG_INFO("Connected\r\n");
-			}
+			NRF_LOG_INFO("Connected\r\n");
 //            bsp_board_led_on(CONNECTED_LED_PIN);
             bsp_board_led_off(ADVERTISING_LED_PIN);
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
@@ -402,9 +376,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
             break; // BLE_GAP_EVT_CONNECTED
 
         case BLE_GAP_EVT_DISCONNECTED:
-			if(app_debug_level) {
-				NRF_LOG_INFO("Disconnected\r\n");
-			}
+			NRF_LOG_INFO("Disconnected\r\n");
 //            bsp_board_led_off(CONNECTED_LED_PIN);
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
 
@@ -431,9 +403,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 
         case BLE_GATTC_EVT_TIMEOUT:
             // Disconnect on GATT Client timeout event.
-			if(app_debug_level) {
-				NRF_LOG_DEBUG("GATT Client Timeout.\r\n");
-			}
+			NRF_LOG_DEBUG("GATT Client Timeout.\r\n");
             err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gattc_evt.conn_handle,
                                              BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
             APP_ERROR_CHECK(err_code);
@@ -441,9 +411,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 
         case BLE_GATTS_EVT_TIMEOUT:
             // Disconnect on GATT Server timeout event.
-			if(app_debug_level) {
-				NRF_LOG_DEBUG("GATT Server Timeout.\r\n");
-			}
+			NRF_LOG_DEBUG("GATT Server Timeout.\r\n");
             err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gatts_evt.conn_handle,
                                              BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
             APP_ERROR_CHECK(err_code);
@@ -708,13 +676,9 @@ static void app_update_function(ble_smss_t * p_smss, uint8_t *data)
 						(data[1] << 8) +
 						(data[2] << 16) +
 						(data[3] << 24));
-	if(app_debug_level) {
 	NRF_LOG_INFO("Received app update command: %#x\n\r", command);
-	}
 	if(command == 0x00) {
-		if(app_debug_level) {
-			NRF_LOG_INFO("Restarting device with 3 min bootloader...\n\r");
-		}
+		NRF_LOG_INFO("Restarting device with 3 min bootloader...\n\r");
 		bootloader_start(p_smss->conn_handle);
 	}
 }
@@ -858,9 +822,7 @@ static void power_manage(void)
 
 void timers_start(void)
 {
-	if(app_debug_level) {
-		NRF_LOG_INFO("Starting poll timers...\n\r");
-	}
+	NRF_LOG_INFO("Starting poll timers...\n\r");
 	app_timer_start(pressure_poll_int_id,
 					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_PRESSURE_POLL_MS, UNIT_1_00_MS), 0),
 					NULL);
@@ -897,10 +859,13 @@ int main(void)
     advertising_init();
     conn_params_init();
 
-//	if(app_debug_level > 0) {
-	NRF_LOG_INFO("APP debug level: 0x%02x\n\r", app_debug_level);
-		NRF_LOG_INFO("Initializing hardware...\n\r");
-//	}
+	uint8_t fw_msb, fw_lsb;
+	fw_msb = ((SMS_VERSION_ID & 0xFF) > 8);
+	fw_lsb = (SMS_VERSION_ID & 0x0F);
+	NRF_LOG_INFO("===============================\n\r");
+	NRF_LOG_INFO("SMS sensors firmware v%d.%d, r%03d\n\r", fw_msb, fw_lsb, SMS_RELEASE_ID);
+	NRF_LOG_INFO("===============================\n\n\r");
+	NRF_LOG_DEBUG("Initializing hardware...\n\r");
 	spi_init();
 	twi_init();
 	
@@ -909,35 +874,27 @@ int main(void)
 	
 	// Initialize & configure peripherals
 	pressure_startup();
-	if(app_debug_level) {
-		NRF_LOG_INFO("MS58 enabled? %d\r\n\n", ms58_config.dev_en);
-	}
+	NRF_LOG_DEBUG("MS58 enabled? %d\r\n\n", ms58_config.dev_en);
 	
 	imu_startup();
-	if(app_debug_level) {
-		NRF_LOG_INFO("BNO055 enabled? %d\r\n\n", bno055_config.dev_en);
-	}
+	NRF_LOG_DEBUG("BNO055 enabled? %d\r\n\n", bno055_config.dev_en);
 	if(bno055_config.dev_en) {
 		imu_configure();
 		imu_check_cal();
-		if(app_debug_level) {
-			NRF_LOG_INFO("System calibration: %d\n\r",
-						((0xC0 & bno055_config.cal_state) >> 6));
-			NRF_LOG_INFO("Gyro   calibration: %d\n\r",
-						((0x30 & bno055_config.cal_state) >> 4));
-			NRF_LOG_INFO("Accel  calibration: %d\n\r",
-						((0x0C & bno055_config.cal_state) >> 2));
-			NRF_LOG_INFO("Mag    calibration: %d\n\r",
-						((0x03 & bno055_config.cal_state) >> 0));
-		}
+		NRF_LOG_DEBUG("System calibration: %d\n\r",
+					((0xC0 & bno055_config.cal_state) >> 6));
+		NRF_LOG_DEBUG("Gyro   calibration: %d\n\r",
+					((0x30 & bno055_config.cal_state) >> 4));
+		NRF_LOG_DEBUG("Accel  calibration: %d\n\r",
+					((0x0C & bno055_config.cal_state) >> 2));
+		NRF_LOG_DEBUG("Mag    calibration: %d\n\r",
+					((0x03 & bno055_config.cal_state) >> 0));
 		imu_initialize();
 	}
 	
 	
 	// Start advertising
-	if(app_debug_level) {
-		NRF_LOG_INFO("Starting SMS sensors!\r\n");
-	}
+	NRF_LOG_DEBUG("Starting SMS sensors!\r\n");
     bsp_board_led_on(ADVERTISING_LED_PIN);
 	err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
 	APP_ERROR_CHECK(err_code);

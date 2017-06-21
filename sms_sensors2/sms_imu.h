@@ -28,7 +28,6 @@
 
 #define PI						(3.1415926535897932384626433832795)
 
-extern uint8_t app_debug_level;
 
 //void bno055_reset(void);
 //int bno055_check(void);
