@@ -164,6 +164,17 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
     app_error_handler(DEAD_BEEF, line_num, p_file_name);
 }
 
+static void sms_switch_off(void)
+{
+	NRF_LOG_INFO("Switching-off device...\n\r");
+}
+
+static void sms_switch_on(void)
+{
+	NRF_LOG_INFO("Switching-on device...\n\r");
+}
+
+
 /* ====================================================================
  * HANDLERS
  * --------------------------------------------------------------------
@@ -190,9 +201,11 @@ static void button_press_timeout_handler(void * p_context)
 	if(button_state == button_mask) {
 		if(button_state == 0x11) {
 			NRF_LOG_DEBUG("DOUBLE long press!!\n\r");
+			sms_switch_off();
 		}
 		else if((button_state == 0x01) || (button_state == 0x10)) {
 			NRF_LOG_DEBUG("SINGLE long press!!\n\r");
+			sms_switch_on();
 		}
 	}
 	// Reset button mask to force complete button release before next detection
@@ -238,10 +251,10 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
 			if(button_action) button_mask |= 0x01;
 			else button_mask &= 0xF0;
 			
-			NRF_LOG_INFO("Stopping button timer... mask = 0x%02x\n\r", button_mask);
+			NRF_LOG_DEBUG("Stopping button timer... mask = 0x%02x\n\r", button_mask);
 			app_timer_stop(button_press_timer_id);
 			if(button_mask != 0) {
-				NRF_LOG_INFO("Re-starting button timer...\n\r");
+				NRF_LOG_DEBUG("Re-starting button timer...\n\r");
 				app_timer_start(button_press_timer_id,
 					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_BUTTON_LONG_PRESS_MS, UNIT_1_00_MS), 0),
 					NULL);		
@@ -268,10 +281,10 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
 			if(button_action) button_mask |= 0x10;
 			else button_mask &= 0x0F;
 			
-			NRF_LOG_INFO("Stopping button timer... mask = 0x%02x\n\r", button_mask);
+			NRF_LOG_DEBUG("Stopping button timer... mask = 0x%02x\n\r", button_mask);
 			app_timer_stop(button_press_timer_id);
 			if(button_mask != 0) {
-				NRF_LOG_INFO("Re-starting button timer...\n\r");
+				NRF_LOG_DEBUG("Re-starting button timer...\n\r");
 				app_timer_start(button_press_timer_id,
 					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_BUTTON_LONG_PRESS_MS, UNIT_1_00_MS), 0),
 					NULL);		
@@ -871,6 +884,7 @@ int main(void)
 	NRF_LOG_INFO("===============================\n\r");
 	NRF_LOG_INFO("SMS sensors firmware v%d.%d, r%03d\n\r", fw_msb, fw_lsb, SMS_RELEASE_ID);
 	NRF_LOG_INFO("===============================\n\n\r");
+	
 	NRF_LOG_DEBUG("Initializing hardware...\n\r");
 	spi_init();
 	twi_init();
