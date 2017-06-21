@@ -185,11 +185,17 @@ static void button_press_timeout_handler(void * p_context)
 	uint8_t button_state = 0;
 	if(app_button_is_pushed(0)) button_state |= 0x01;
 	if(app_button_is_pushed(1)) button_state |= 0x10;
-	NRF_LOG_INFO("Button long press timeout!! Button state = 0x%02x\n\r", button_state);
+	NRF_LOG_DEBUG("Button long press timeout!! Button state = 0x%02x\n\r", button_state);
 
 	if(button_state == button_mask) {
-		NRF_LOG_INFO("LONG PRESS!!\n\r");
+		if(button_state == 0x11) {
+			NRF_LOG_DEBUG("DOUBLE long press!!\n\r");
+		}
+		else if((button_state == 0x01) || (button_state == 0x10)) {
+			NRF_LOG_DEBUG("SINGLE long press!!\n\r");
+		}
 	}
+	// Reset button mask to force complete button release before next detection
 	button_mask = 0;
 }
 
