@@ -73,7 +73,7 @@
 #define BOOTLOADER_DFU_START			(0xB1)
 
 #define APP_ADV_INTERVAL                64										/**< The advertising interval (in units of 0.625 ms; this value corresponds to 40 ms). */
-#define APP_ADV_TIMEOUT_IN_SECONDS      BLE_GAP_ADV_TIMEOUT_GENERAL_UNLIMITED	/**< The advertising time-out (in units of seconds). When set to 0, we will never time out. */
+#define APP_ADV_TIMEOUT_IN_SECONDS      BLE_GAP_ADV_TIMEOUT_LIMITED_MAX			/**< The advertising time-out (in units of seconds). When set to 0, we will never time out. */
 
 #define APP_TIMER_PRESCALER             0										/**< Value of the RTC1 PRESCALER register. */
 #define APP_TIMER_MAX_TIMERS            6										/**< Maximum number of simultaneously created timers. */
@@ -785,20 +785,26 @@ static void conn_params_init(void)
 void advertising_start(void)
 {
     uint32_t             err_code;
-    ble_gap_adv_params_t adv_params;
+//    ble_gap_adv_params_t adv_params;
 
-    // Start advertising
-    memset(&adv_params, 0, sizeof(adv_params));
+	NRF_LOG_INFO("Starting advertising for %d seconds\n\r", APP_ADV_TIMEOUT_IN_SECONDS);
 
-    adv_params.type        = BLE_GAP_ADV_TYPE_ADV_IND;
-    adv_params.p_peer_addr = NULL;
-    adv_params.fp          = BLE_GAP_ADV_FP_ANY;
-    adv_params.interval    = APP_ADV_INTERVAL;
-    adv_params.timeout     = APP_ADV_TIMEOUT_IN_SECONDS;
-
-    err_code = sd_ble_gap_adv_start(&adv_params);
-    APP_ERROR_CHECK(err_code);
     bsp_board_led_on(ADVERTISING_LED_PIN);
+	err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
+	APP_ERROR_CHECK(err_code);
+	
+//    // Start advertising
+//    memset(&adv_params, 0, sizeof(adv_params));
+
+//    adv_params.type        = BLE_GAP_ADV_TYPE_ADV_IND;
+//    adv_params.p_peer_addr = NULL;
+//    adv_params.fp          = BLE_GAP_ADV_FP_ANY;
+//    adv_params.interval    = APP_ADV_INTERVAL;
+//    adv_params.timeout     = APP_ADV_TIMEOUT_IN_SECONDS;
+
+//    err_code = sd_ble_gap_adv_start(&adv_params);
+//    APP_ERROR_CHECK(err_code);
+//    bsp_board_led_on(ADVERTISING_LED_PIN);
 }
 
 
@@ -848,6 +854,7 @@ void timers_start(void)
 	app_timer_start(imu_poll_int_id,
 					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_IMU_POLL_MS, UNIT_1_00_MS), 0),
 					NULL);
+	nrf_drv_timer_enable(&TIMER_DELTA_US);
 }
 
 void button_press_timer_start(void)
@@ -914,10 +921,11 @@ int main(void)
 	
 	
 	// Start advertising
-	NRF_LOG_DEBUG("Starting SMS sensors!\r\n");
-    bsp_board_led_on(ADVERTISING_LED_PIN);
-	err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
-	APP_ERROR_CHECK(err_code);
+	advertising_start();
+//	NRF_LOG_DEBUG("Starting SMS sensors!\r\n");
+//    bsp_board_led_on(ADVERTISING_LED_PIN);
+//	err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
+//	APP_ERROR_CHECK(err_code);
 
     // Enter main loop.
     for (;;)

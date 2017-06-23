@@ -523,8 +523,9 @@ void bno055_int_reset(void)
 
 void imu_poll_data(uint8_t data_msk)
 {
-	if((data_msk & SMS_IMU_DATAMSK_ACCEL) == SMS_IMU_DATAMSK_ACCEL) {
-		float ax, ay, az;
+	float ax, ay, az, gx, gy, gz, mx, my, mz;
+
+	if(data_msk & SMS_IMU_DATAMSK_ACCEL) {
 		int16_t data[3];
 		read_accel_data(data);  // Read the x/y/z adc values
 		// Now we'll calculate the accleration value into actual mg's
@@ -535,11 +536,13 @@ void imu_poll_data(uint8_t data_msk)
 		bno055_output.accel[0].val = ax;
 		bno055_output.accel[1].val = ay;
 		bno055_output.accel[2].val = az;
-		// NRF_LOG_INFO("Raw acceleration: %x, %x, %x\n", (int32_t)(ax*10000.), (int32_t)(ay*10000.), (int32_t)(az*10000.));
+		NRF_LOG_DEBUG("Raw acceleration (10^6): %x, %x, %x\n\r",
+				(int32_t)(ax*1000000.),
+				(int32_t)(ay*1000000.),
+				(int32_t)(az*1000000.));
 	}
 	
-	if((data_msk & SMS_IMU_DATAMSK_GYRO) == SMS_IMU_DATAMSK_GYRO) {
-		float gx, gy, gz;
+	if(data_msk & SMS_IMU_DATAMSK_GYRO) {
 		int16_t data[3];
 		read_gyro_data(data);  // Read the x/y/z adc values
 		// Calculate the gyro value into actual degrees per second
@@ -550,11 +553,13 @@ void imu_poll_data(uint8_t data_msk)
 		bno055_output.gyro[0].val = gx;
 		bno055_output.gyro[1].val = gy;
 		bno055_output.gyro[2].val = gz;
-	//	NRF_LOG_INFO("Raw gyroscope   : %ld, %ld, %ld\n", (int32_t)(gx*10000.), (int32_t)(gy*10000.), (int32_t)(gz*10000.));
+		NRF_LOG_DEBUG("Raw gyroscope (10^6)   : %ld, %ld, %ld\n\r",
+				(int32_t)(gx*1000000.),
+				(int32_t)(gy*1000000.),
+				(int32_t)(gz*1000000.));
 	}
 
-	if((data_msk & SMS_IMU_DATAMSK_MAG) == SMS_IMU_DATAMSK_MAG) {
-		float mx, my, mz;
+	if(data_msk & SMS_IMU_DATAMSK_MAG) {
 		int16_t data[3];
 		read_mag_data(data);  // Read the x/y/z adc values   
 		// Calculate the magnetometer values in milliGauss
@@ -565,10 +570,13 @@ void imu_poll_data(uint8_t data_msk)
 		bno055_output.mag[0].val = mx;
 		bno055_output.mag[1].val = my;
 		bno055_output.mag[2].val = mz;
-	//	NRF_LOG_INFO("Raw magnetometer: %ld, %ld, %ld\n", (int32_t)(mx*10000.), (int32_t)(my*10000.), (int32_t)(mz*10000.));
+		NRF_LOG_DEBUG("Raw magnetometer (10^6): %ld, %ld, %ld\n\r",
+				(int32_t)(mx*1000000.),
+				(int32_t)(my*1000000.),
+				(int32_t)(mz*1000000.));
 	}
     
-	if((data_msk & SMS_IMU_DATAMSK_QUAT) == SMS_IMU_DATAMSK_QUAT) {
+	if(data_msk & SMS_IMU_DATAMSK_QUAT) {
 		float q[4];
 		int16_t data[4];
 		read_quat_data(data);  // Read the x/y/z adc values   
@@ -582,10 +590,14 @@ void imu_poll_data(uint8_t data_msk)
 		bno055_output.quat[1].val = q[1];
 		bno055_output.quat[2].val = q[2];
 		bno055_output.quat[3].val = q[3];
-	// 	NRF_LOG_INFO("Raw quaternions : %ld, %ld, %ld, %ld\n", (int32_t)(q[0]*10000.), (int32_t)(q[1]*10000.), (int32_t)(q[2]*10000.), (int32_t)(q[3]*10000.));
+		NRF_LOG_DEBUG("Raw quaternions (10^6) : %ld, %ld, %ld, %ld\n\r",
+				(int32_t)(q[0]*1000000.),
+				(int32_t)(q[1]*1000000.),
+				(int32_t)(q[2]*1000000.),
+				(int32_t)(q[3]*1000000.));
 	}
 	
-	if((data_msk & SMS_IMU_DATAMSK_EULER) == SMS_IMU_DATAMSK_EULER) {
+	if(data_msk & SMS_IMU_DATAMSK_EULER) {
 		float yaw, roll, pitch;
 		int16_t data[3];
 		read_euler_data(data);  // Read the x/y/z adc values   
@@ -597,10 +609,13 @@ void imu_poll_data(uint8_t data_msk)
 		bno055_output.yaw.val = yaw;
 		bno055_output.roll.val = roll;
 		bno055_output.pitch.val = pitch;
-	// 	NRF_LOG_INFO("Raw euler angles: %ld, %ld, %ld\n", (int32_t)(yaw*10000.), (int32_t)(roll*10000.), (int32_t)(pitch*10000.));
+		NRF_LOG_DEBUG("Raw euler angles (10^6): %ld, %ld, %ld\n\r",
+				(int32_t)(yaw*1000000.),
+				(int32_t)(roll*1000000.),
+				(int32_t)(pitch*1000000.));
 	}
 	
-	if((data_msk & SMS_IMU_DATAMSK_LIA) == SMS_IMU_DATAMSK_LIA) {
+	if(data_msk & SMS_IMU_DATAMSK_LIA) {
 		float lia[3];
 		int16_t data[3];
 		read_lia_data(data);  // Read the x/y/z adc values   
@@ -612,10 +627,13 @@ void imu_poll_data(uint8_t data_msk)
 		bno055_output.lia[0].val = lia[0];
 		bno055_output.lia[1].val = lia[1];
 		bno055_output.lia[2].val = lia[2];
-	//	NRF_LOG_INFO("Raw LIA         : %ld, %ld, %ld\n", (int32_t)(lia[0]*10000.), (int32_t)(lia[1]*10000.), (int32_t)(lia[2]*10000.));
+		NRF_LOG_DEBUG("Raw LIA (10^6)         : %ld, %ld, %ld\n\r",
+				(int32_t)(lia[0]*1000000.),
+				(int32_t)(lia[1]*1000000.),
+				(int32_t)(lia[2]*1000000.));
 	}
 	
-	if((data_msk & SMS_IMU_DATAMSK_GRV) == SMS_IMU_DATAMSK_GRV) {
+	if(data_msk & SMS_IMU_DATAMSK_GRV) {
 		float grv[3];
 		int16_t data[3];
 		read_grv_data(data);  // Read the x/y/z adc values   
@@ -627,28 +645,38 @@ void imu_poll_data(uint8_t data_msk)
 		bno055_output.grv[0].val = grv[0];
 		bno055_output.grv[1].val = grv[1];
 		bno055_output.grv[2].val = grv[2];
-	//	NRF_LOG_INFO("Raw gravity     : %ld, %ld, %ld\n", (int32_t)(grv[0]*10000.), (int32_t)(grv[1]*10000.), (int32_t)(grv[2]*10000.));
+		NRF_LOG_DEBUG("Raw gravity (10^6)     : %ld, %ld, %ld\n\r",
+				(int32_t)(grv[0]*1000000.),
+				(int32_t)(grv[1]*1000000.),
+				(int32_t)(grv[2]*1000000.));
 	}
 	
-	// Chose (once) between unprecise but low-power ms app timer
+	//Chose (once) between unprecise but low-power ms app timer
 	// and precise current-demanding us drv timer 
 //	static uint32_t last_time_ms = 0;
 //	uint32_t now_ms = app_timer_cnt_get();
 //	uint32_t delta_ms = (now_ms - last_time_ms)/33;
 //	last_time_ms = now_ms;
 	static uint32_t last_time_us = 0;
+	uint32_t delta_us;
 	uint32_t now_us = nrf_drv_timer_capture(&TIMER_DELTA_US, NRF_TIMER_CC_CHANNEL0);
-	uint32_t delta_us = now_us - last_time_us;
+	if(now_us > last_time_us) {
+		delta_us = now_us - last_time_us;
+	}
+	else {
+		delta_us = 0xFFFFFFFF - last_time_us + now_us;
+	}
 	last_time_us = now_us;
 	// Fill the sensor output table for later sending
 	bno055_output.ts_us = now_us;
+	NRF_LOG_INFO("Timestamp/Delta (us)   : %ld/%ld\n\r", bno055_output.ts_us, delta_us);
 	
-//	float deltat = (float)delta_us/1000000.;
+	if((data_msk & SMS_IMU_DATAMSK_ACCEL) && (data_msk & SMS_IMU_DATAMSK_GYRO) && (data_msk & SMS_IMU_DATAMSK_MAG)) {
+		float deltat = (float)delta_us/1000000.;
 
-//	mahony_quaternion_update(ax, ay, az, gx*PI/180.0, gy*PI/180.0, gz*PI/180.0, my, mx, mz, deltat);
-//	madgwick_quaternion_update(ax, ay, az, gx*PI/180.0, gy*PI/180.0, gz*PI/180.0, my, mx, mz, deltat);
-//	mahony_quaternion_update(ax, ay, az, gx*PI/180.0, gy*PI/180.0, gz*PI/180.0, my, mx, mz, deltat);
-//	madgwick_quaternion_update(ax, ay, az, gx*PI/180.0, gy*PI/180.0, gz*PI/180.0, my, mx, mz, deltat);
+		mahony_quaternion_update(ax, ay, az, gx*PI/180.0, gy*PI/180.0, gz*PI/180.0, my, mx, mz, deltat);
+//		madgwick_quaternion_update(ax, ay, az, gx*PI/180.0, gy*PI/180.0, gz*PI/180.0, my, mx, mz, deltat);
+	}
 }
 
 

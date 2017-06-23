@@ -140,7 +140,7 @@ void pressure_read_data(void)
 	if(ms58_output.complete) {
 		ms58_output.adc_values[MS58_TYPE_PRESS] = \
 				((m_rx_buf[1] << 16) | (m_rx_buf[2] << 8) | (m_rx_buf[3]));
-		NRF_LOG_INFO("Getting Pressure... 0x%x (%d)\n\r",
+		NRF_LOG_DEBUG("Getting Pressure... 0x%x (%d)\n\r",
 				ms58_output.adc_values[MS58_TYPE_PRESS],
 				ms58_output.adc_values[MS58_TYPE_PRESS]);
 		m_tx_buf[0] = MS58_CONV_D2_4096;

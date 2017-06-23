@@ -7,6 +7,7 @@
 
 #include <math.h>
 #include "sms_imu.h"
+#include "nrf_log.h"
 
 extern struct mpu9250_config_s mpu9250_config;
 extern struct mpu9250_output_s mpu9250_output;
@@ -125,7 +126,11 @@ void madgwick_quaternion_update(float ax, float ay, float az, float gx, float gy
 	norm = sqrtf(q1 * q1 + q2 * q2 + q3 * q3 + q4 * q4);    // normalize quaternion
 	norm = 1.0f/norm;
 
-	SEGGER_RTT_printf(0, "Madgwick quat   : %ld, %ld, %ld, %ld\n", (int32_t)(q1 * 10000.), (int32_t)(q2 * 10000.), (int32_t)(q3 * 10000.), (int32_t)(q4 * 10000.));
+	NRF_LOG_DEBUG("Madgwick quat   : %ld, %ld, %ld, %ld\n",
+			(int32_t)(q1 * 10000.),
+			(int32_t)(q2 * 10000.),
+			(int32_t)(q3 * 10000.),
+			(int32_t)(q4 * 10000.));
 //	mpu9250_output.q[0] = q1 * norm;
 //	mpu9250_output.q[1] = q2 * norm;
 //	mpu9250_output.q[2] = q3 * norm;
@@ -234,7 +239,11 @@ void mahony_quaternion_update(float ax, float ay, float az, float gx, float gy, 
 	q3 = q3 * norm;
 	q4 = q4 * norm;
 	
-	SEGGER_RTT_printf(0, "Mahony quat     : %ld, %ld, %ld, %ld\n", (int32_t)(q1 * 10000.), (int32_t)(q2 * 10000.), (int32_t)(q3 * 10000.), (int32_t)(q4 * 10000.));
+	NRF_LOG_DEBUG("Mahony quat     : %ld, %ld, %ld, %ld\n\r",
+			(int32_t)(q1 * 10000.),
+			(int32_t)(q2 * 10000.),
+			(int32_t)(q3 * 10000.),
+			(int32_t)(q4 * 10000.));
 //	mpu9250_output.q[0] = q1 * norm;
 //	mpu9250_output.q[1] = q2 * norm;
 //	mpu9250_output.q[2] = q3 * norm;
