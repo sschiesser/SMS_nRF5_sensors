@@ -414,9 +414,7 @@ static void read_grv_data(int16_t * destination)
 }
 
 
-
-
-void imu_startup(void)
+static void imu_startup(void)
 {
 	// Initialize all bno055 struct values
 	bno055_config.init_ok = true;
@@ -455,7 +453,7 @@ void imu_startup(void)
 }
 
 
-void imu_configure(void)
+static void imu_configure(void)
 {
 	bno055_test();
 	bno055_init_config_values();
@@ -465,12 +463,12 @@ void imu_configure(void)
 }
 
 
-void imu_check_cal(void)
+static void imu_check_cal(void)
 {
 	bno055_config.cal_state = readByte(BNO055_ADDRESS, BNO055_CALIB_STAT);
 }
 
-void imu_initialize(void)
+static void imu_initialize(void)
 {
 	// Select BNO055 config mode
 	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, CONFIGMODE );
@@ -515,7 +513,7 @@ void imu_initialize(void)
 	nrf_delay_ms(25);
 }
 
-void bno055_int_reset(void)
+static void bno055_int_reset(void)
 {
 	writeByte(BNO055_ADDRESS, BNO055_SYS_TRIGGER, 0x40);
 }
@@ -671,12 +669,25 @@ void imu_poll_data(uint8_t data_msk)
 	bno055_output.ts_us = now_us;
 	NRF_LOG_INFO("Timestamp/Delta (us)   : %ld/%ld\n\r", bno055_output.ts_us, delta_us);
 	
-	if((data_msk & SMS_IMU_DATAMSK_ACCEL) && (data_msk & SMS_IMU_DATAMSK_GYRO) && (data_msk & SMS_IMU_DATAMSK_MAG)) {
-		float deltat = (float)delta_us/1000000.;
-
-		mahony_quaternion_update(ax, ay, az, gx*PI/180.0, gy*PI/180.0, gz*PI/180.0, my, mx, mz, deltat);
-//		madgwick_quaternion_update(ax, ay, az, gx*PI/180.0, gy*PI/180.0, gz*PI/180.0, my, mx, mz, deltat);
-	}
+	bno055_interrupt.rts = true;
 }
 
 
+void imu_enable(void)
+{
+	imu_startup();
+	NRF_LOG_DEBUG("BNO055 enabled? %d\r\n\n", bno055_config.dev_en);
+	if(bno055_config.dev_en) {
+		imu_configure();
+		imu_check_cal();
+		NRF_LOG_DEBUG("System calibration: %d\n\r",
+					((0xC0 & bno055_config.cal_state) >> 6));
+		NRF_LOG_DEBUG("Gyro   calibration: %d\n\r",
+					((0x30 & bno055_config.cal_state) >> 4));
+		NRF_LOG_DEBUG("Accel  calibration: %d\n\r",
+					((0x0C & bno055_config.cal_state) >> 2));
+		NRF_LOG_DEBUG("Mag    calibration: %d\n\r",
+					((0x03 & bno055_config.cal_state) >> 0));
+		imu_initialize();
+	}
+}

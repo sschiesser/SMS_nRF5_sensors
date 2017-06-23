@@ -126,7 +126,7 @@ void madgwick_quaternion_update(float ax, float ay, float az, float gx, float gy
 	norm = sqrtf(q1 * q1 + q2 * q2 + q3 * q3 + q4 * q4);    // normalize quaternion
 	norm = 1.0f/norm;
 
-	NRF_LOG_DEBUG("Madgwick quat   : %ld, %ld, %ld, %ld\n\r",
+	NRF_LOG_DEBUG("Madgwick quat   : %ld, %ld, %ld, %ld\n",
 			(int32_t)(q1 * 10000.),
 			(int32_t)(q2 * 10000.),
 			(int32_t)(q3 * 10000.),

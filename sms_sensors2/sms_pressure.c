@@ -86,82 +86,7 @@ static void ms58_read_prom(void)
 	while(!spi_xfer_done);
 }
 
-
-void pressure_startup(void)
-{
-	// Initialize all ms58 struct values
-	ms58_config.init_ok = true;
-	ms58_config.dev_en = false;
-	ms58_output.complete = false;
-	ms58_output.pressure = 0;
-	ms58_output.temperature = 0;
-	for(uint8_t i = 0; i < MS58_PROM_VAL_MAX; i++) {
-		ms58_output.prom_values[i] = 0;
-	}
-	for(uint8_t i = 0; i < MS58_ADC_VAL_MAX; i++) {
-		ms58_output.adc_values[i] = 0;
-	}
-	ms58_interrupt.enabled = false;
-	ms58_interrupt.new_value = false;
-	ms58_interrupt.rts = false;
-	
-	// Reset device & read PROM factory settings
-	ms58_reset();
-	ms58_read_prom();
-	
-	// Roughly test PROM values
-	for(uint8_t i = 1; i < 7; i++) {
-		NRF_LOG_DEBUG("MS58 PROM value %d: 0x%x\n\r", i, ms58_output.prom_values[i]);
-		if((ms58_output.prom_values[i] == 0) || (ms58_output.prom_values[i] == 0xff)) {
-			NRF_LOG_INFO("MS58 PROM suspect value: 0x%#x\r\n", ms58_output.prom_values[i]);
-			ms58_config.init_ok = false;
-		}
-	}
-	
-	ms58_config.dev_en = ms58_config.init_ok;
-}
-
-void pressure_read_data(void)
-{
-	uint8_t tx_len = 4;
-	uint8_t rx_len = 4;
-	
-	memset(m_rx_buf, 0, rx_len);
-	m_tx_buf[0] = MS58_ADC_READ;
-	m_tx_buf[1] = MS58_ADC_READ;
-	m_tx_buf[2] = MS58_ADC_READ;
-	m_tx_buf[3] = MS58_ADC_READ;
-	spi_xfer_done = false;
-	APP_ERROR_CHECK(nrf_drv_spi_transfer(&spi_master_instance,
-					m_tx_buf, tx_len,
-					m_rx_buf, rx_len));
-	while(!spi_xfer_done) {};
-
-	if(ms58_output.complete) {
-		ms58_output.adc_values[MS58_TYPE_PRESS] = \
-				((m_rx_buf[1] << 16) | (m_rx_buf[2] << 8) | (m_rx_buf[3]));
-		NRF_LOG_DEBUG("Getting Pressure... 0x%x (%d)\n\r",
-				ms58_output.adc_values[MS58_TYPE_PRESS],
-				ms58_output.adc_values[MS58_TYPE_PRESS]);
-		m_tx_buf[0] = MS58_CONV_D2_4096;
-	}
-	else {
-		ms58_output.adc_values[MS58_TYPE_TEMP] = \
-				((m_rx_buf[1] << 16) | (m_rx_buf[2] << 8) | (m_rx_buf[3]));
-//		NRF_LOG_INFO("Getting Temperature...0x%x (%d)\n\r", ms58_output.adc_values[MS58_TYPE_TEMP], ms58_output.adc_values[MS58_TYPE_TEMP]);
-		m_tx_buf[0] = MS58_CONV_D1_4096;
-	}
-	tx_len = 1;
-	rx_len = 0;
-	spi_xfer_done = false;
-	APP_ERROR_CHECK(nrf_drv_spi_transfer(&spi_master_instance,
-					m_tx_buf, tx_len,
-					m_rx_buf, rx_len));
-	while(!spi_xfer_done) {};
-}
-
-
-void pressure_calculate(void)
+static void pressure_calculate(void)
 {
     /***************************************************************************
     * Calculated values...
@@ -227,4 +152,98 @@ void pressure_calculate(void)
     tv2 = tv1 - offset;
     /* press: 3277097212 / 2^15 = 100009(.070190) */
     ms58_output.pressure = (int32_t)(tv2 >> 15);
+	NRF_LOG_DEBUG("Pressure/Temperature (10^2): %ld/%ld\n\r", ms58_output.pressure, ms58_output.temperature);
 }
+
+
+static void pressure_startup(void)
+{
+	// Initialize all ms58 struct values
+	ms58_config.init_ok = true;
+	ms58_config.dev_en = false;
+	ms58_output.complete = false;
+	ms58_output.pressure = 0;
+	ms58_output.temperature = 0;
+	for(uint8_t i = 0; i < MS58_PROM_VAL_MAX; i++) {
+		ms58_output.prom_values[i] = 0;
+	}
+	for(uint8_t i = 0; i < MS58_ADC_VAL_MAX; i++) {
+		ms58_output.adc_values[i] = 0;
+	}
+	ms58_interrupt.enabled = false;
+	ms58_interrupt.new_value = false;
+	ms58_interrupt.rts = false;
+	
+	// Reset device & read PROM factory settings
+	ms58_reset();
+	ms58_read_prom();
+	
+	// Roughly test PROM values
+	for(uint8_t i = 1; i < 7; i++) {
+		NRF_LOG_DEBUG("MS58 PROM value %d: 0x%x\n\r", i, ms58_output.prom_values[i]);
+		if((ms58_output.prom_values[i] == 0) || (ms58_output.prom_values[i] == 0xff)) {
+			NRF_LOG_INFO("MS58 PROM suspect value: 0x%#x\r\n", ms58_output.prom_values[i]);
+			ms58_config.init_ok = false;
+		}
+	}
+	
+	ms58_config.dev_en = ms58_config.init_ok;
+}
+
+void pressure_poll_data(void)
+{
+	uint8_t tx_len = 4;
+	uint8_t rx_len = 4;
+	
+	memset(m_rx_buf, 0, rx_len);
+	m_tx_buf[0] = MS58_ADC_READ;
+	m_tx_buf[1] = MS58_ADC_READ;
+	m_tx_buf[2] = MS58_ADC_READ;
+	m_tx_buf[3] = MS58_ADC_READ;
+	spi_xfer_done = false;
+	APP_ERROR_CHECK(nrf_drv_spi_transfer(&spi_master_instance,
+					m_tx_buf, tx_len,
+					m_rx_buf, rx_len));
+	while(!spi_xfer_done) {};
+
+	if(ms58_output.complete) {
+		ms58_output.adc_values[MS58_TYPE_PRESS] = \
+				((m_rx_buf[1] << 16) | (m_rx_buf[2] << 8) | (m_rx_buf[3]));
+//		NRF_LOG_DEBUG("Getting Pressure... 0x%x (%d)\n\r",
+//				ms58_output.adc_values[MS58_TYPE_PRESS],
+//				ms58_output.adc_values[MS58_TYPE_PRESS]);
+		m_tx_buf[0] = MS58_CONV_D2_4096;
+	}
+	else {
+		ms58_output.adc_values[MS58_TYPE_TEMP] = \
+				((m_rx_buf[1] << 16) | (m_rx_buf[2] << 8) | (m_rx_buf[3]));
+//		NRF_LOG_DEBUG("Getting Temperature...0x%x (%d)\n\r",
+//				ms58_output.adc_values[MS58_TYPE_TEMP],
+//				ms58_output.adc_values[MS58_TYPE_TEMP]);
+		m_tx_buf[0] = MS58_CONV_D1_4096;
+	}
+	tx_len = 1;
+	rx_len = 0;
+	spi_xfer_done = false;
+	APP_ERROR_CHECK(nrf_drv_spi_transfer(&spi_master_instance,
+					m_tx_buf, tx_len,
+					m_rx_buf, rx_len));
+	while(!spi_xfer_done) {};
+	
+	if(ms58_output.complete) {
+		ms58_output.complete = false;
+		pressure_calculate();
+		ms58_interrupt.rts = true;
+	}
+	else {
+		ms58_output.complete = true;
+	}
+}
+
+void pressure_enable(void)
+{
+	NRF_LOG_DEBUG("Enabling pressure sensor...\n\r");
+	pressure_startup();
+	NRF_LOG_DEBUG("MS58 enabled? %d\r\n\n", ms58_config.dev_en);
+}
+

@@ -900,24 +900,8 @@ int main(void)
 	timers_create();
 	
 	// Initialize & configure peripherals
-	pressure_startup();
-	NRF_LOG_DEBUG("MS58 enabled? %d\r\n\n", ms58_config.dev_en);
-	
-	imu_startup();
-	NRF_LOG_DEBUG("BNO055 enabled? %d\r\n\n", bno055_config.dev_en);
-	if(bno055_config.dev_en) {
-		imu_configure();
-		imu_check_cal();
-		NRF_LOG_DEBUG("System calibration: %d\n\r",
-					((0xC0 & bno055_config.cal_state) >> 6));
-		NRF_LOG_DEBUG("Gyro   calibration: %d\n\r",
-					((0x30 & bno055_config.cal_state) >> 4));
-		NRF_LOG_DEBUG("Accel  calibration: %d\n\r",
-					((0x0C & bno055_config.cal_state) >> 2));
-		NRF_LOG_DEBUG("Mag    calibration: %d\n\r",
-					((0x03 & bno055_config.cal_state) >> 0));
-		imu_initialize();
-	}
+	pressure_enable();
+	imu_enable();
 	
 	
 	// Start advertising
@@ -940,18 +924,7 @@ int main(void)
 			nrf_gpio_pin_write(DBG1_PIN, 1);
 			
 			ms58_interrupt.new_value = false;
-			pressure_read_data();
-			if(ms58_output.complete) {
-				ms58_output.complete = false;
-				pressure_calculate();
-//				NRF_LOG_INFO("Press/Temp: %#x/%#x\n\r",
-//								ms58_output.pressure,
-//								ms58_output.temperature);
-				ms58_interrupt.rts = true;
-			}
-			else {
-				ms58_output.complete = true;
-			}
+			pressure_poll_data();
 			
 			nrf_gpio_pin_write(DBG1_PIN, 0);
 		}
@@ -966,7 +939,7 @@ int main(void)
 //						(int32_t)(bno055_output.quat[1].val * 1000000),
 //						(int32_t)(bno055_output.quat[2].val * 1000000),
 //						(int32_t)(bno055_output.quat[3].val * 1000000));
-			bno055_interrupt.rts = true;
+//			bno055_interrupt.rts = true;
 			
 			nrf_gpio_pin_write(DBG2_PIN, 0);
 		}

@@ -10,9 +10,10 @@
 #define SMS_PRESSURE_POLL_MS		49
 
 
-void pressure_startup(void);
-void pressure_read_data(void);
-void pressure_calculate(void);
+//void pressure_startup(void);
+void pressure_enable(void);
+void pressure_poll_data(void);
+//void pressure_calculate(void);
 
 
 #endif
