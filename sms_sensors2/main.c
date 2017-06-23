@@ -900,9 +900,7 @@ int main(void)
 	timers_create();
 	
 	// Initialize & configure peripherals
-	pressure_startup();
-	NRF_LOG_DEBUG("MS58 enabled? %d\r\n\n", ms58_config.dev_en);
-	
+	pressure_enable();
 	imu_startup();
 	NRF_LOG_DEBUG("BNO055 enabled? %d\r\n\n", bno055_config.dev_en);
 	if(bno055_config.dev_en) {
@@ -940,18 +938,7 @@ int main(void)
 			nrf_gpio_pin_write(DBG1_PIN, 1);
 			
 			ms58_interrupt.new_value = false;
-			pressure_read_data();
-			if(ms58_output.complete) {
-				ms58_output.complete = false;
-				pressure_calculate();
-//				NRF_LOG_INFO("Press/Temp: %#x/%#x\n\r",
-//								ms58_output.pressure,
-//								ms58_output.temperature);
-				ms58_interrupt.rts = true;
-			}
-			else {
-				ms58_output.complete = true;
-			}
+			pressure_poll_data();
 			
 			nrf_gpio_pin_write(DBG1_PIN, 0);
 		}

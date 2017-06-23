@@ -674,7 +674,7 @@ void imu_poll_data(uint8_t data_msk)
 	if((data_msk & SMS_IMU_DATAMSK_ACCEL) && (data_msk & SMS_IMU_DATAMSK_GYRO) && (data_msk & SMS_IMU_DATAMSK_MAG)) {
 		float deltat = (float)delta_us/1000000.;
 
-		mahony_quaternion_update(ax, ay, az, gx*PI/180.0, gy*PI/180.0, gz*PI/180.0, my, mx, mz, deltat);
+//		mahony_quaternion_update(ax, ay, az, gx*PI/180.0, gy*PI/180.0, gz*PI/180.0, my, mx, mz, deltat);
 //		madgwick_quaternion_update(ax, ay, az, gx*PI/180.0, gy*PI/180.0, gz*PI/180.0, my, mx, mz, deltat);
 	}
 }
