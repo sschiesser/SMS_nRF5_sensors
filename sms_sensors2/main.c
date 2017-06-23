@@ -171,9 +171,14 @@ static void sms_switch_off(void)
 	uint32_t err_code;
 	
 	NRF_LOG_INFO("Switching-off SMS sensors...\n\r");
-	timers_stop();
+//	timers_stop();
+	app_timer_stop_all();
+
 	err_code = app_button_disable();
 	APP_ERROR_CHECK(err_code);
+	
+	err_code = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+//	sd_softdevice_disable();
 }
 
 static void sms_switch_on(void)

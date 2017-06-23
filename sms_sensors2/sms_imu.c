@@ -11,7 +11,7 @@ bno055_config_s bno055_config;
 bno055_output_s bno055_output;
 bno055_interrupt_s bno055_interrupt;
 
-extern const nrf_drv_timer_t TIMER_DELTA_US;
+//extern const nrf_drv_timer_t TIMER_DELTA_US;
 
 static void writeByte(uint8_t address, uint8_t subAddress, uint8_t data)
 {
@@ -655,19 +655,19 @@ void imu_poll_data(uint8_t data_msk)
 //	uint32_t now_ms = app_timer_cnt_get();
 //	uint32_t delta_ms = (now_ms - last_time_ms)/33;
 //	last_time_ms = now_ms;
-	static uint32_t last_time_us = 0;
-	uint32_t delta_us;
-	uint32_t now_us = nrf_drv_timer_capture(&TIMER_DELTA_US, NRF_TIMER_CC_CHANNEL0);
-	if(now_us > last_time_us) {
-		delta_us = now_us - last_time_us;
-	}
-	else {
-		delta_us = 0xFFFFFFFF - last_time_us + now_us;
-	}
-	last_time_us = now_us;
-	// Fill the sensor output table for later sending
-	bno055_output.ts_us = now_us;
-	NRF_LOG_INFO("Timestamp/Delta (us)   : %ld/%ld\n\r", bno055_output.ts_us, delta_us);
+//	static uint32_t last_time_us = 0;
+//	uint32_t delta_us;
+//	uint32_t now_us = nrf_drv_timer_capture(&TIMER_DELTA_US, NRF_TIMER_CC_CHANNEL0);
+//	if(now_us > last_time_us) {
+//		delta_us = now_us - last_time_us;
+//	}
+//	else {
+//		delta_us = 0xFFFFFFFF - last_time_us + now_us;
+//	}
+//	last_time_us = now_us;
+//	// Fill the sensor output table for later sending
+//	bno055_output.ts_us = now_us;
+//	NRF_LOG_INFO("Timestamp/Delta (us)   : %ld/%ld\n\r", bno055_output.ts_us, delta_us);
 	
 	bno055_interrupt.rts = true;
 }
