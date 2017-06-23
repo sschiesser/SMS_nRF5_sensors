@@ -110,11 +110,12 @@ APP_TIMER_DEF(pressure_poll_int_id);
 APP_TIMER_DEF(imu_poll_int_id);
 APP_TIMER_DEF(button_press_timer_id);
 //APP_TIMER_DEF(micros_cnt_id);
-// drv timer instantiation
-#define TIMER_INSTANCE 1
-const nrf_drv_timer_t TIMER_DELTA_US = NRF_DRV_TIMER_INSTANCE(TIMER_INSTANCE);
-// counter overflow for us timer
-volatile uint32_t micros_cnt_overflow = 0;
+
+//// drv timer instantiation
+//#define TIMER_INSTANCE 1
+//const nrf_drv_timer_t TIMER_DELTA_US = NRF_DRV_TIMER_INSTANCE(TIMER_INSTANCE);
+//// counter overflow for us timer
+//volatile uint32_t micros_cnt_overflow = 0;
 
 // SPI
 #define SPI_INSTANCE 0
@@ -146,6 +147,7 @@ extern bno055_interrupt_s bno055_interrupt;
  * ==================================================================== */
 void advertising_start(void);
 void timers_start(void);
+void timers_stop(void);
 void button_press_timer_start(void);
 
 /**@brief Function for assert macro callback.
@@ -166,12 +168,17 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
 
 static void sms_switch_off(void)
 {
-	NRF_LOG_INFO("Switching-off device...\n\r");
+	uint32_t err_code;
+	
+	NRF_LOG_INFO("Switching-off SMS sensors...\n\r");
+	timers_stop();
+	err_code = app_button_disable();
+	APP_ERROR_CHECK(err_code);
 }
 
 static void sms_switch_on(void)
 {
-	NRF_LOG_INFO("Switching-on device...\n\r");
+	NRF_LOG_INFO("Switching-on SMS sensors...\n\r");
 }
 
 
@@ -212,11 +219,11 @@ static void button_press_timeout_handler(void * p_context)
 	button_mask = 0;
 }
 
-static void timer_delta_us_handler(nrf_timer_event_t event_type, void * p_context)
-{
-	nrf_drv_timer_clear(&TIMER_DELTA_US);
-//	bsp_board_led_invert(LEDBUTTON_LED_PIN);
-}
+//static void timer_delta_us_handler(nrf_timer_event_t event_type, void * p_context)
+//{
+//	nrf_drv_timer_clear(&TIMER_DELTA_US);
+////	bsp_board_led_invert(LEDBUTTON_LED_PIN);
+//}
 
 
 // Hardware interrupts
@@ -399,10 +406,12 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 //            bsp_board_led_off(CONNECTED_LED_PIN);
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
 
+			timers_stop();
+		
             err_code = app_button_disable();
             APP_ERROR_CHECK(err_code);
 
-            advertising_start();
+//            advertising_start();
             break; // BLE_GAP_EVT_DISCONNECTED
 
         case BLE_GAP_EVT_SEC_PARAMS_REQUEST:
@@ -569,16 +578,16 @@ void twi_init(void)
  */
 static void timers_init(void)
 {
-	uint32_t err_code;
+//	uint32_t err_code;
 
     // Initialize application timer module, making it use the scheduler
     APP_TIMER_INIT(APP_TIMER_PRESCALER, APP_TIMER_OP_QUEUE_SIZE, false);
 	
-	// Initialize the timer driver to count microseconds
-	nrf_drv_timer_config_t timer_config = NRF_DRV_TIMER_DEFAULT_CONFIG;
-	timer_config.frequency = NRF_TIMER_FREQ_1MHz;
-	err_code = nrf_drv_timer_init(&TIMER_DELTA_US, &timer_config, timer_delta_us_handler);
-	APP_ERROR_CHECK(err_code);
+//	// Initialize the timer driver to count microseconds
+//	nrf_drv_timer_config_t timer_config = NRF_DRV_TIMER_DEFAULT_CONFIG;
+//	timer_config.frequency = NRF_TIMER_FREQ_1MHz;
+//	err_code = nrf_drv_timer_init(&TIMER_DELTA_US, &timer_config, timer_delta_us_handler);
+//	APP_ERROR_CHECK(err_code);
 }
 
 static void bootloader_start(uint16_t conn_handle)
@@ -854,7 +863,15 @@ void timers_start(void)
 	app_timer_start(imu_poll_int_id,
 					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_IMU_POLL_MS, UNIT_1_00_MS), 0),
 					NULL);
-	nrf_drv_timer_enable(&TIMER_DELTA_US);
+//	nrf_drv_timer_enable(&TIMER_DELTA_US);
+}
+
+void timers_stop(void)
+{
+	NRF_LOG_INFO("Stopping poll timers...\n\r");
+	app_timer_stop(pressure_poll_int_id);
+	app_timer_stop(imu_poll_int_id);
+	app_timer_stop(button_press_timer_id);
 }
 
 void button_press_timer_start(void)
@@ -902,14 +919,9 @@ int main(void)
 	// Initialize & configure peripherals
 	pressure_enable();
 	imu_enable();
-	
-	
+		
 	// Start advertising
 	advertising_start();
-//	NRF_LOG_DEBUG("Starting SMS sensors!\r\n");
-//    bsp_board_led_on(ADVERTISING_LED_PIN);
-//	err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
-//	APP_ERROR_CHECK(err_code);
 
     // Enter main loop.
     for (;;)
