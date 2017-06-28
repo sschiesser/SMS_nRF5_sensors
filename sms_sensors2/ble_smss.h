@@ -52,13 +52,8 @@ extern "C" {
 #define SMSS_UUID_PRESS_CHAR  0x1C59
 #define SMSS_UUID_IMU_CHAR	  0x1C5A
 #define SMSS_UUID_UPDATE_CHAR 0x1C60
-//#define SMSS_UUID_SERVICE     0x1523
-//#define SMSS_UUID_BUTTON_CHAR 0x1524
-//#define SMSS_UUID_LED_CHAR    0x1525
-//#define SMSS_UUID_PRESS_CHAR  0x1526
-//#define SMSS_UUID_IMU_CHAR	  0x1527
-			
-							  
+	
+					  
 typedef struct ble_smss_s ble_smss_t;
 							  
 typedef void (*ble_smss_app_update_handler_t)	(ble_smss_t * p_smss, uint8_t *data);
