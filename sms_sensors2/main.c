@@ -172,8 +172,10 @@ static void sms_switch_off(void)
 	
 	NRF_LOG_INFO("Switching-off SMS sensors...\n\r");
 	err_code = app_timer_stop_all();
-
-	err_code = app_button_disable();
+	NRF_LOG_INFO("err_code: 0x%04x\n\r", err_code);
+//	APP_ERROR_CHECK(err_code);
+	
+//	err_code = app_button_disable();
 //	APP_ERROR_CHECK(err_code);
 	
 	bno055_interrupt.new_value = false;
@@ -185,13 +187,16 @@ static void sms_switch_off(void)
 	ms58_interrupt.enabled = false;
 	
 	err_code = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
-	NRF_LOG_INFO("BLE disconnect err_code: 0x%04x\n\r", err_code);
+	NRF_LOG_INFO("err_code: 0x%04x\n\r", err_code);
+//	APP_ERROR_CHECK(err_code);
+//	NRF_LOG_INFO("BLE disconnect err_code: 0x%04x\n\r", err_code);
 //	sd_softdevice_disable();
 }
 
 static void sms_switch_on(void)
 {
 	NRF_LOG_INFO("Switching-on SMS sensors...\n\r");
+	advertising_start();
 }
 
 
@@ -255,10 +260,7 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
         case LEDBUTTON_BUTTON1_PIN:
 			if(button_action) send_value |= 0xFF;
 			else send_value &= 0xFF00;
-			NRF_LOG_INFO("Bt1... sending %#x\r\n", send_value);
-//			int32_t * tosend1;
-//			tosend1 = &ms58_output.pressure;
-//			err_code = ble_smss_on_press_value(&m_smss_service, tosend1);
+			NRF_LOG_INFO("Bt1 pressed\r\n", send_value);
             err_code = ble_smss_on_button_change(&m_smss_service, send_value);
             if (err_code != NRF_SUCCESS &&						// 0x0000
                 err_code != BLE_ERROR_INVALID_CONN_HANDLE &&	// 0x3002
@@ -285,10 +287,7 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
 		case LEDBUTTON_BUTTON2_PIN:
 			if(button_action) send_value |= 0xFF00;
 			else send_value &= 0x00FF;
-			NRF_LOG_INFO("Bt2... sending %#x\r\n", send_value);
-//			uint32_t * tosend2;
-//			tosend2 = (uint32_t*)&bno055_output.grv[0].b;
-//			err_code = ble_smss_on_imu_value(&m_smss_service, tosend2);
+			NRF_LOG_INFO("Bt2 pressed\r\n", send_value);
 			err_code = ble_smss_on_button_change(&m_smss_service, send_value);
 			if (err_code != NRF_SUCCESS &&						// 0x0000
 				err_code != BLE_ERROR_INVALID_CONN_HANDLE &&	// 0x3002
@@ -419,10 +418,8 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 //            bsp_board_led_off(CONNECTED_LED_PIN);
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
 
-			timers_stop();
-		
-            err_code = app_button_disable();
-            APP_ERROR_CHECK(err_code);
+//            err_code = app_button_disable();
+//            APP_ERROR_CHECK(err_code);
 
 //            advertising_start();
             break; // BLE_GAP_EVT_DISCONNECTED
