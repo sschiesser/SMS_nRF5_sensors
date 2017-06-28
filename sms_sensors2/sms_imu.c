@@ -342,10 +342,10 @@ static void read_gyro_data(int16_t *destination)
 	destination[2] = ((int16_t)rawData[5] << 8) | rawData[4]; 
 }
 // Read temperature data
-static int16_t read_gyrotemp_data(void)
-{
-  return readByte(BNO055_ADDRESS, BNO055_TEMP);  // Read the two raw data registers sequentially into data array 
-}
+//static int16_t read_gyrotemp_data(void)
+//{
+//  return readByte(BNO055_ADDRESS, BNO055_TEMP);  // Read the two raw data registers sequentially into data array 
+//}
 
 // Read magnetometer data
 static void read_mag_data(int16_t *destination)
@@ -513,10 +513,10 @@ static void imu_initialize(void)
 	nrf_delay_ms(25);
 }
 
-static void bno055_int_reset(void)
-{
-	writeByte(BNO055_ADDRESS, BNO055_SYS_TRIGGER, 0x40);
-}
+//static void bno055_int_reset(void)
+//{
+//	writeByte(BNO055_ADDRESS, BNO055_SYS_TRIGGER, 0x40);
+//}
 
 
 void imu_poll_data(uint8_t data_msk)

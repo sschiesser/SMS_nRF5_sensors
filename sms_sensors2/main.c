@@ -76,13 +76,13 @@
 #define APP_ADV_TIMEOUT_IN_SECONDS      BLE_GAP_ADV_TIMEOUT_LIMITED_MAX			/**< The advertising time-out (in units of seconds). When set to 0, we will never time out. */
 
 #define APP_TIMER_PRESCALER             0										/**< Value of the RTC1 PRESCALER register. */
-#define APP_TIMER_MAX_TIMERS            6										/**< Maximum number of simultaneously created timers. */
-#define APP_TIMER_OP_QUEUE_SIZE         4										/**< Size of timer operation queues. */
+#define APP_TIMER_MAX_TIMERS            8										/**< Maximum number of simultaneously created timers. */
+#define APP_TIMER_OP_QUEUE_SIZE         6										/**< Size of timer operation queues. */
 
-#define MIN_CONN_INTERVAL               MSEC_TO_UNITS(10, UNIT_1_25_MS)			/**< Minimum acceptable connection interval (0.5 seconds). */
-#define MAX_CONN_INTERVAL               MSEC_TO_UNITS(50, UNIT_1_25_MS)			/**< Maximum acceptable connection interval (1 second). */
+#define MIN_CONN_INTERVAL               MSEC_TO_UNITS(8, UNIT_1_25_MS)			/**< Minimum acceptable connection interval (10 ms). */
+#define MAX_CONN_INTERVAL               MSEC_TO_UNITS(40, UNIT_1_25_MS)			/**< Maximum acceptable connection interval (50 ms). */
 #define SLAVE_LATENCY                   0										/**< Slave latency. */
-#define CONN_SUP_TIMEOUT                MSEC_TO_UNITS(4000, UNIT_10_MS)			/**< Connection supervisory time-out (4 seconds). */
+#define CONN_SUP_TIMEOUT                MSEC_TO_UNITS(2000, UNIT_10_MS)			/**< Connection supervisory time-out (4 seconds). */
 #define FIRST_CONN_PARAMS_UPDATE_DELAY  APP_TIMER_TICKS(20000, APP_TIMER_PRESCALER)	/**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (15 seconds). */
 #define NEXT_CONN_PARAMS_UPDATE_DELAY   APP_TIMER_TICKS(5000, APP_TIMER_PRESCALER)	/**< Time between each call to sd_ble_gap_conn_param_update after the first call (5 seconds). */
 #define MAX_CONN_PARAMS_UPDATE_COUNT    3										/**< Number of attempts before giving up the connection parameter negotiation. */
@@ -171,13 +171,21 @@ static void sms_switch_off(void)
 	uint32_t err_code;
 	
 	NRF_LOG_INFO("Switching-off SMS sensors...\n\r");
-//	timers_stop();
-	app_timer_stop_all();
+	err_code = app_timer_stop_all();
 
 	err_code = app_button_disable();
-	APP_ERROR_CHECK(err_code);
+//	APP_ERROR_CHECK(err_code);
+	
+	bno055_interrupt.new_value = false;
+	bno055_interrupt.rts = false;
+	bno055_interrupt.enabled = false;
+	
+	ms58_interrupt.new_value = false;
+	ms58_interrupt.rts = false;
+	ms58_interrupt.enabled = false;
 	
 	err_code = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+	NRF_LOG_INFO("BLE disconnect err_code: 0x%04x\n\r", err_code);
 //	sd_softdevice_disable();
 }
 
@@ -507,8 +515,8 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
 {
     on_ble_evt(p_ble_evt);
-    ble_conn_params_on_ble_evt(p_ble_evt);
     ble_smss_on_ble_evt(&m_smss_service, p_ble_evt);
+    ble_conn_params_on_ble_evt(p_ble_evt);
 }
 /* ====================================================================
  * INITIALIZATIONS
