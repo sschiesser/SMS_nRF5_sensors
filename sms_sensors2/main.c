@@ -73,14 +73,15 @@
 #define BOOTLOADER_DFU_START			(0xB1)
 
 #define APP_ADV_INTERVAL                64										/**< The advertising interval (in units of 0.625 ms; this value corresponds to 40 ms). */
-#define APP_ADV_TIMEOUT_IN_SECONDS      BLE_GAP_ADV_TIMEOUT_LIMITED_MAX			/**< The advertising time-out (in units of seconds). When set to 0, we will never time out. */
+#define APP_ADV_TIMEOUT_IN_SECONDS      120
+//#define APP_ADV_TIMEOUT_IN_SECONDS      BLE_GAP_ADV_TIMEOUT_LIMITED_MAX			/**< The advertising time-out (in units of seconds). When set to 0, we will never time out. */
 
 #define APP_TIMER_PRESCALER             0										/**< Value of the RTC1 PRESCALER register. */
 #define APP_TIMER_MAX_TIMERS            8										/**< Maximum number of simultaneously created timers. */
 #define APP_TIMER_OP_QUEUE_SIZE         6										/**< Size of timer operation queues. */
 
-#define MIN_CONN_INTERVAL               MSEC_TO_UNITS(15, UNIT_1_25_MS)			/**< Minimum acceptable connection interval (10 ms). */
-#define MAX_CONN_INTERVAL               MSEC_TO_UNITS(20, UNIT_1_25_MS)			/**< Maximum acceptable connection interval (50 ms). */
+#define MIN_CONN_INTERVAL               MSEC_TO_UNITS(15, UNIT_1_25_MS)			/**< Minimum acceptable connection interval (15 ms). */
+#define MAX_CONN_INTERVAL               MSEC_TO_UNITS(20, UNIT_1_25_MS)			/**< Maximum acceptable connection interval (20 ms). */
 #define SLAVE_LATENCY                   0										/**< Slave latency. */
 #define CONN_SUP_TIMEOUT                MSEC_TO_UNITS(2000, UNIT_10_MS)			/**< Connection supervisory time-out (4 seconds). */
 #define FIRST_CONN_PARAMS_UPDATE_DELAY  APP_TIMER_TICKS(20000, APP_TIMER_PRESCALER)	/**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (15 seconds). */
@@ -377,7 +378,7 @@ static void conn_params_error_handler(uint32_t nrf_error)
 static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
 {
     uint32_t err_code;
-
+	
     switch (ble_adv_evt)
     {
         case BLE_ADV_EVT_FAST:
@@ -452,6 +453,10 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
                                                    NULL);
             APP_ERROR_CHECK(err_code);
             break; // BLE_GAP_EVT_SEC_PARAMS_REQUEST
+		
+		case BLE_GAP_EVT_TIMEOUT:
+			sms_switch_off();
+			break;
 
         case BLE_GATTS_EVT_SYS_ATTR_MISSING:
             // No system attributes have been stored.
@@ -531,6 +536,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
  */
 static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
 {
+	NRF_LOG_INFO("BLE event dispatch: %d\n\r", p_ble_evt->header.evt_id);
     on_ble_evt(p_ble_evt);
     ble_smss_on_ble_evt(&m_smss_service, p_ble_evt);
     ble_conn_params_on_ble_evt(p_ble_evt);
