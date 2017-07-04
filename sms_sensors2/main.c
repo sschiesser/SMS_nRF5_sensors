@@ -430,8 +430,8 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
 			m_device_state = SMS_RUNNING;
 
-            err_code = app_button_enable();
-            APP_ERROR_CHECK(err_code);
+//            err_code = app_button_enable();
+//            APP_ERROR_CHECK(err_code);
 			
 			timers_start();
 		
@@ -951,6 +951,8 @@ int main(void)
 	// Initialize & configure peripherals
 	pressure_enable();
 	imu_enable();
+    err_code = app_button_enable();
+    APP_ERROR_CHECK(err_code);
 		
 	// Start advertising
 	advertising_start();
