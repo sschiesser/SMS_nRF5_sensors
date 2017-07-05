@@ -175,17 +175,11 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
     app_error_handler(DEAD_BEEF, line_num, p_file_name);
 }
 
-static void sms_switch_off(void)
+static void sms_switch_off(bool restart)
 {
 	uint32_t err_code;
 	
 	NRF_LOG_INFO("Switching-off SMS sensors...\n\r");
-	err_code = app_timer_stop_all();
-	NRF_LOG_INFO("Timer stop err_code: 0x%04x\n\r", err_code);
-//	APP_ERROR_CHECK(err_code);
-	
-//	err_code = app_button_disable();
-//	APP_ERROR_CHECK(err_code);
 	
 	bno055_interrupt.new_value = false;
 	bno055_interrupt.rts = false;
@@ -199,15 +193,20 @@ static void sms_switch_off(void)
 		err_code = sd_ble_gap_adv_stop();
 		NRF_LOG_INFO("Adv stop err_code: 0x%04x\n\r", err_code);
         bsp_board_led_off(ADVERTISING_LED_PIN);
+		m_device_state = SMS_OFF;
 	}
 	if(m_device_state == SMS_RUNNING) {
+		err_code = app_timer_stop_all();
+		NRF_LOG_INFO("Timer stop err_code: 0x%04x\n\r", err_code);
+
 		err_code = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
 		NRF_LOG_INFO("Disconnect err_code: 0x%04x\n\r", err_code);
-
+		if(!restart) {
+			m_device_state = SMS_OFF;
+		}
 	}
 	
 	m_conn_handle = BLE_CONN_HANDLE_INVALID;
-	m_device_state = SMS_OFF;
 	
 //	APP_ERROR_CHECK(err_code);
 //	NRF_LOG_INFO("BLE disconnect err_code: 0x%04x\n\r", err_code);
@@ -248,7 +247,7 @@ static void button_press_timeout_handler(void * p_context)
 		if(button_state == 0x11) {
 			NRF_LOG_INFO("DOUBLE long press!! SMS state: %d\n\r", m_device_state);
 			if((m_device_state == SMS_ADVERTISING) || (m_device_state == SMS_RUNNING)) {
-				sms_switch_off();
+				sms_switch_off(false);
 			}
 		}
 		else if((button_state == 0x01) || (button_state == 0x10)) {
@@ -428,21 +427,20 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
         case BLE_GAP_EVT_CONNECTED:
 			NRF_LOG_INFO("Connected\r\n");
             bsp_board_led_off(ADVERTISING_LED_PIN);
-//            m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
-			m_device_state = SMS_RUNNING;
-
-//            err_code = app_button_enable();
-//            APP_ERROR_CHECK(err_code);
+            m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
 			
-			sensors_start();
+			m_device_state = SMS_RUNNING;
+			
+			 sensors_start();
             break; // BLE_GAP_EVT_CONNECTED
 
         case BLE_GAP_EVT_DISCONNECTED:
 			NRF_LOG_INFO("Disconnected\r\n");
 //            m_conn_handle = BLE_CONN_HANDLE_INVALID;
-
 			sensors_stop();
-            advertising_start();
+			if(m_device_state == SMS_RUNNING) {
+				advertising_start();
+			}
             break; // BLE_GAP_EVT_DISCONNECTED
 
         case BLE_GAP_EVT_SEC_PARAMS_REQUEST:
@@ -455,7 +453,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
             break; // BLE_GAP_EVT_SEC_PARAMS_REQUEST
 		
 		case BLE_GAP_EVT_TIMEOUT:
-			sms_switch_off();
+			sms_switch_off(false);
 			break;
 
         case BLE_GATTS_EVT_SYS_ATTR_MISSING:
@@ -536,7 +534,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
  */
 static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
 {
-	NRF_LOG_INFO("BLE event dispatch: %d\n\r", p_ble_evt->header.evt_id);
+//	NRF_LOG_INFO("BLE event dispatch: %d\n\r", p_ble_evt->header.evt_id);
     on_ble_evt(p_ble_evt);
     ble_smss_on_ble_evt(&m_smss_service, p_ble_evt);
     ble_conn_params_on_ble_evt(p_ble_evt);
