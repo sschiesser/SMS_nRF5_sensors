@@ -77,8 +77,8 @@
 //#define APP_ADV_TIMEOUT_IN_SECONDS      BLE_GAP_ADV_TIMEOUT_LIMITED_MAX			/**< The advertising time-out (in units of seconds). When set to 0, we will never time out. */
 
 #define APP_TIMER_PRESCALER             0										/**< Value of the RTC1 PRESCALER register. */
-#define APP_TIMER_MAX_TIMERS            8										/**< Maximum number of simultaneously created timers. */
-#define APP_TIMER_OP_QUEUE_SIZE         6										/**< Size of timer operation queues. */
+#define APP_TIMER_MAX_TIMERS            10										/**< Maximum number of simultaneously created timers. */
+#define APP_TIMER_OP_QUEUE_SIZE         8										/**< Size of timer operation queues. */
 
 #define MIN_CONN_INTERVAL               MSEC_TO_UNITS(15, UNIT_1_25_MS)			/**< Minimum acceptable connection interval (15 ms). */
 #define MAX_CONN_INTERVAL               MSEC_TO_UNITS(20, UNIT_1_25_MS)			/**< Maximum acceptable connection interval (20 ms). */
@@ -155,8 +155,8 @@ extern bno055_interrupt_s bno055_interrupt;
  *
  * ==================================================================== */
 void advertising_start(void);
-void timers_start(void);
-void timers_stop(void);
+void sensors_start(void);
+void sensors_stop(void);
 void button_press_timer_start(void);
 
 /**@brief Function for assert macro callback.
@@ -428,21 +428,21 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
         case BLE_GAP_EVT_CONNECTED:
 			NRF_LOG_INFO("Connected\r\n");
             bsp_board_led_off(ADVERTISING_LED_PIN);
-            m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
+//            m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
 			m_device_state = SMS_RUNNING;
 
 //            err_code = app_button_enable();
 //            APP_ERROR_CHECK(err_code);
 			
-			timers_start();
-		
+			sensors_start();
             break; // BLE_GAP_EVT_CONNECTED
 
         case BLE_GAP_EVT_DISCONNECTED:
 			NRF_LOG_INFO("Disconnected\r\n");
-            m_conn_handle = BLE_CONN_HANDLE_INVALID;
+//            m_conn_handle = BLE_CONN_HANDLE_INVALID;
 
-//            advertising_start();
+			sensors_stop();
+            advertising_start();
             break; // BLE_GAP_EVT_DISCONNECTED
 
         case BLE_GAP_EVT_SEC_PARAMS_REQUEST:
@@ -892,7 +892,7 @@ static void power_manage(void)
 }
 
 
-void timers_start(void)
+void sensors_start(void)
 {
 	NRF_LOG_INFO("Starting poll timers...\n\r");
 	app_timer_start(pressure_poll_int_id,
@@ -902,14 +902,19 @@ void timers_start(void)
 					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_IMU_POLL_MS, UNIT_1_00_MS), 0),
 					NULL);
 //	nrf_drv_timer_enable(&TIMER_DELTA_US);
+	
+	ms58_interrupt.enabled = true;
+	bno055_interrupt.enabled = true;
 }
 
-void timers_stop(void)
+void sensors_stop(void)
 {
 	NRF_LOG_INFO("Stopping poll timers...\n\r");
 	app_timer_stop(pressure_poll_int_id);
 	app_timer_stop(imu_poll_int_id);
-	app_timer_stop(button_press_timer_id);
+	
+	ms58_interrupt.enabled = false;
+	bno055_interrupt.enabled = false;
 }
 
 void button_press_timer_start(void)
@@ -971,7 +976,7 @@ int main(void)
             power_manage();
         }
 		
-		if(ms58_interrupt.new_value)
+		if((ms58_interrupt.enabled) && (ms58_interrupt.new_value))
 		{
 			nrf_gpio_pin_write(DBG1_PIN, 1);
 			
@@ -981,7 +986,8 @@ int main(void)
 			nrf_gpio_pin_write(DBG1_PIN, 0);
 		}
 		
-		if(bno055_interrupt.new_value) {
+		if((bno055_interrupt.enabled) && (bno055_interrupt.new_value))
+		{
 			nrf_gpio_pin_write(DBG2_PIN, 1);
 
 			bno055_interrupt.new_value = false;
@@ -996,7 +1002,8 @@ int main(void)
 			nrf_gpio_pin_write(DBG2_PIN, 0);
 		}
 		
-		if(ms58_interrupt.rts) {
+		if((ms58_interrupt.enabled) && (ms58_interrupt.rts))
+		{
 			nrf_gpio_pin_write(DBG1_PIN, 1);
 			
 			ms58_interrupt.rts = false;
@@ -1014,7 +1021,8 @@ int main(void)
 			
 			nrf_gpio_pin_write(DBG1_PIN, 0);
 		}
-		if(bno055_interrupt.rts) {
+		if((bno055_interrupt.enabled) && (bno055_interrupt.rts))
+		{
 			nrf_gpio_pin_write(DBG2_PIN, 1);
 			
 			bno055_interrupt.rts = false;
