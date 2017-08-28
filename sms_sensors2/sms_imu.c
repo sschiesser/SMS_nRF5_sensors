@@ -496,8 +496,12 @@ static void imu_initialize(void)
 //	// Enable interrupt
 //	writeByte(BNO055_ADDRESS, BNO055_INT_EN, 0x44);
 	
-	// Select page 0 to read sensors
+	// Select page 0 to read sensors & configure orientation
 	writeByte(BNO055_ADDRESS, BNO055_PAGE_ID, 0x00);
+	
+	// Set BNO055 axis configuration P3 (0x21 / 0x02)
+	writeByte(BNO055_ADDRESS, BNO055_AXIS_MAP_CONFIG, 0x21);
+	writeByte(BNO055_ADDRESS, BNO055_AXIS_MAP_SIGN, 0x02);
 
 	// Select BNO055 gyro temperature source 
 	writeByte(BNO055_ADDRESS, BNO055_TEMP_SOURCE, 0x01 );

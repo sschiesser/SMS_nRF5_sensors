@@ -990,11 +990,11 @@ int main(void)
 
 			bno055_interrupt.new_value = false;
 			imu_poll_data(SMS_IMU_DATAMSK_QUAT);
-//			NRF_LOG_INFO("Quat: %d %d %d %d\n\r",
-//						(int32_t)(bno055_output.quat[0].val * 1000000),
-//						(int32_t)(bno055_output.quat[1].val * 1000000),
-//						(int32_t)(bno055_output.quat[2].val * 1000000),
-//						(int32_t)(bno055_output.quat[3].val * 1000000));
+			NRF_LOG_INFO("Quat: %d %d %d %d\n\r",
+						(int32_t)(bno055_output.quat[0].val * 1000000),
+						(int32_t)(bno055_output.quat[1].val * 1000000),
+						(int32_t)(bno055_output.quat[2].val * 1000000),
+						(int32_t)(bno055_output.quat[3].val * 1000000));
 //			bno055_interrupt.rts = true;
 			
 			nrf_gpio_pin_write(DBG2_PIN, 0);
