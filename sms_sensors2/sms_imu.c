@@ -680,7 +680,7 @@ void imu_poll_data(uint8_t data_msk)
 void imu_enable(void)
 {
 	imu_startup();
-	NRF_LOG_DEBUG("BNO055 enabled? %d\r\n\n", bno055_config.dev_en);
+//	NRF_LOG_DEBUG("BNO055 enabled? %d\r\n\n", bno055_config.dev_en);
 	if(bno055_config.dev_en) {
 		imu_configure();
 		imu_check_cal();

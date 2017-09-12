@@ -9,6 +9,8 @@
 
 #define SMS_PRESSURE_POLL_MS		49
 
+#define SMS_PRESSURE_SUPPLY_PIN		15
+
 
 //void pressure_startup(void);
 void pressure_enable(void);

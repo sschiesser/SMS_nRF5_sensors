@@ -7,6 +7,11 @@
 
 #ifndef BNO055_H_
 #define BNO055_H_
+
+/* === Includes ============================================================= */
+#include <stdbool.h>
+#include <stdint.h>
+
 // BNO055 Register Map
 // http://ae-bst.resource.bosch.com/media/products/dokumente/bno055/BST_BNO055_DS000_10_Release.pdf
 
@@ -266,6 +271,7 @@ typedef struct {
 	//	float mag_calibration[3];
 	//	bool ahrs;
 	uint8_t cal_state;
+	bool dev_start;
 	bool init_ok;
 	bool dev_en;
 	uint8_t comp_mask;

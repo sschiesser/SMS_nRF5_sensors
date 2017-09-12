@@ -431,7 +431,9 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 			
 			m_device_state = SMS_RUNNING;
 			
-			 sensors_start();
+			ms58_config.dev_start = true;
+			bno055_config.dev_start = true;
+
             break; // BLE_GAP_EVT_CONNECTED
 
         case BLE_GAP_EVT_DISCONNECTED:
@@ -552,6 +554,20 @@ static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
 static void leds_init(void)
 {
     bsp_board_leds_init();
+}
+
+/**@brief Function to initialize the sensors' power supplies ports.
+ *
+ *
+ * @details Set up supply ports to output and to low
+ */
+static void supplies_init(void)
+{
+	NRF_LOG_INFO("Preparing supply ports as outputs\r\n");
+	nrf_gpio_cfg_output(SMS_PRESSURE_SUPPLY_PIN);
+	nrf_gpio_pin_write(SMS_PRESSURE_SUPPLY_PIN, 0);
+	nrf_gpio_cfg_output(SMS_IMU_SUPPLY_PIN);
+	nrf_gpio_pin_write(SMS_IMU_SUPPLY_PIN, 0);
 }
 
 
@@ -892,22 +908,38 @@ static void power_manage(void)
 
 void sensors_start(void)
 {
-	NRF_LOG_INFO("Starting poll timers...\n\r");
-	app_timer_start(pressure_poll_int_id,
-					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_PRESSURE_POLL_MS, UNIT_1_00_MS), 0),
-					NULL);
-	app_timer_start(imu_poll_int_id,
-					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_IMU_POLL_MS, UNIT_1_00_MS), 0),
-					NULL);
-//	nrf_drv_timer_enable(&TIMER_DELTA_US);
+	NRF_LOG_INFO("Starting sensors...\n\r");
+	NRF_LOG_INFO("...switch on supply\n\r");
+	nrf_gpio_pin_write(SMS_PRESSURE_SUPPLY_PIN, 1);
+	nrf_gpio_pin_write(SMS_IMU_SUPPLY_PIN, 1);
 	
-	ms58_interrupt.enabled = true;
-	bno055_interrupt.enabled = true;
+	NRF_LOG_INFO("...enable & initialize: ");
+	pressure_enable();
+	NRF_LOG_INFO("MS58? %d,", ms58_config.dev_en);
+	imu_enable();
+	NRF_LOG_INFO("BNO055? %d\r\n", bno055_config.dev_en);
+	
+//	NRF_LOG_INFO("...timers\n\r");
+//	app_timer_start(pressure_poll_int_id,
+//					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_PRESSURE_POLL_MS, UNIT_1_00_MS), 0),
+//					NULL);
+//	app_timer_start(imu_poll_int_id,
+//					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_IMU_POLL_MS, UNIT_1_00_MS), 0),
+//					NULL);
+////	nrf_drv_timer_enable(&TIMER_DELTA_US);
+//	
+//	ms58_interrupt.enabled = true;
+//	bno055_interrupt.enabled = true;
 }
 
 void sensors_stop(void)
 {
-	NRF_LOG_INFO("Stopping poll timers...\n\r");
+	NRF_LOG_INFO("Stopping sensors...\n\r");
+	NRF_LOG_INFO("...switch off supply\n\r");
+	nrf_gpio_pin_write(SMS_PRESSURE_SUPPLY_PIN, 0);
+	nrf_gpio_pin_write(SMS_IMU_SUPPLY_PIN, 0);
+	
+	NRF_LOG_INFO("...polling timers\n\r");
 	app_timer_stop(pressure_poll_int_id);
 	app_timer_stop(imu_poll_int_id);
 	
@@ -931,11 +963,20 @@ int main(void)
 {
     ret_code_t err_code;
     
-    // Initialize
-    leds_init();
-    timers_init();
+    // Setup log
     err_code = NRF_LOG_INIT(NULL);
     APP_ERROR_CHECK(err_code);
+	uint8_t fw_msb, fw_lsb;
+	fw_msb = ((SMS_VERSION_ID & 0xFF) > 8);
+	fw_lsb = (SMS_VERSION_ID & 0x0F);
+	NRF_LOG_INFO("===============================\n\r");
+	NRF_LOG_INFO("SMS sensors firmware v%d.%d, r%03d\n\r", fw_msb, fw_lsb, SMS_RELEASE_ID);
+	NRF_LOG_INFO("===============================\n\n\r");
+
+	// Initialize hardware & services
+    leds_init();
+    timers_init();
+	supplies_init();
     buttons_init();
     ble_stack_init();
     gap_params_init();
@@ -943,14 +984,8 @@ int main(void)
     advertising_init();
     conn_params_init();
 
-	uint8_t fw_msb, fw_lsb;
-	fw_msb = ((SMS_VERSION_ID & 0xFF) > 8);
-	fw_lsb = (SMS_VERSION_ID & 0x0F);
-	NRF_LOG_INFO("===============================\n\r");
-	NRF_LOG_INFO("SMS sensors firmware v%d.%d, r%03d\n\r", fw_msb, fw_lsb, SMS_RELEASE_ID);
-	NRF_LOG_INFO("===============================\n\n\r");
 	
-	NRF_LOG_DEBUG("Initializing hardware...\n\r");
+	NRF_LOG_INFO("Initializing hardware...\n\r");
 	spi_init();
 	twi_init();
 	
@@ -958,8 +993,10 @@ int main(void)
 	timers_create();
 	
 	// Initialize & configure peripherals
-	pressure_enable();
-	imu_enable();
+//	pressure_enable();
+//	imu_enable();
+	ms58_config.dev_start = false;
+	bno055_config.dev_start = false;
     err_code = app_button_enable();
     APP_ERROR_CHECK(err_code);
 		
@@ -973,6 +1010,54 @@ int main(void)
         {
             power_manage();
         }
+		
+		if(ms58_config.dev_start)
+		{
+			NRF_LOG_INFO("Starting MS58...\n\r");
+			NRF_LOG_INFO("...switch on supply\n\r");
+			nrf_gpio_pin_write(SMS_PRESSURE_SUPPLY_PIN, 1);
+	
+			NRF_LOG_INFO("...enable & initialize: ");
+			pressure_enable();
+			NRF_LOG_INFO("MS58? %d\r\n", ms58_config.dev_en);
+	
+//	NRF_LOG_INFO("...timers\n\r");
+//	app_timer_start(pressure_poll_int_id,
+//					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_PRESSURE_POLL_MS, UNIT_1_00_MS), 0),
+//					NULL);
+//	app_timer_start(imu_poll_int_id,
+//					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_IMU_POLL_MS, UNIT_1_00_MS), 0),
+//					NULL);
+////	nrf_drv_timer_enable(&TIMER_DELTA_US);
+//	
+//	ms58_interrupt.enabled = true;
+//	bno055_interrupt.enabled = true;
+			ms58_config.dev_start = false;
+		}
+		
+		if(bno055_config.dev_start)
+		{
+			NRF_LOG_INFO("Starting BNO055...\n\r");
+			NRF_LOG_INFO("...switch on supply\n\r");
+			nrf_gpio_pin_write(SMS_IMU_SUPPLY_PIN, 1);
+	
+			NRF_LOG_INFO("...enable & initialize: ");
+			imu_enable();
+			NRF_LOG_INFO("BNO055? %d\r\n", bno055_config.dev_en);
+	
+//	NRF_LOG_INFO("...timers\n\r");
+//	app_timer_start(pressure_poll_int_id,
+//					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_PRESSURE_POLL_MS, UNIT_1_00_MS), 0),
+//					NULL);
+//	app_timer_start(imu_poll_int_id,
+//					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_IMU_POLL_MS, UNIT_1_00_MS), 0),
+//					NULL);
+////	nrf_drv_timer_enable(&TIMER_DELTA_US);
+//	
+//	ms58_interrupt.enabled = true;
+//	bno055_interrupt.enabled = true;
+			bno055_config.dev_start = false;
+		}
 		
 		if((ms58_interrupt.enabled) && (ms58_interrupt.new_value))
 		{
@@ -990,7 +1075,7 @@ int main(void)
 
 			bno055_interrupt.new_value = false;
 			imu_poll_data(SMS_IMU_DATAMSK_QUAT);
-			NRF_LOG_INFO("Quat: %d %d %d %d\n\r",
+			NRF_LOG_DEBUG("Quat: %d %d %d %d\n\r",
 						(int32_t)(bno055_output.quat[0].val * 1000000),
 						(int32_t)(bno055_output.quat[1].val * 1000000),
 						(int32_t)(bno055_output.quat[2].val * 1000000),

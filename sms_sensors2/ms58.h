@@ -52,6 +52,7 @@ enum ms58_datatype_tag {
 };
 
 typedef struct {
+	bool dev_start; // command to lauch startup & initialization procedure
 	bool init_ok; // PROM value have been successfully read
 	bool dev_en;
 //    uint8_t osr;

@@ -242,8 +242,8 @@ void pressure_poll_data(void)
 
 void pressure_enable(void)
 {
-	NRF_LOG_DEBUG("Enabling pressure sensor...\n\r");
+//	NRF_LOG_DEBUG("Enabling pressure sensor...\n\r");
 	pressure_startup();
-	NRF_LOG_DEBUG("MS58 enabled? %d\r\n\n", ms58_config.dev_en);
+//	NRF_LOG_DEBUG("MS58 enabled? %d\r\n\n", ms58_config.dev_en);
 }
 

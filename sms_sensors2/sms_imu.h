@@ -25,6 +25,8 @@
 
 #define SMS_IMU_POLL_MS			19
 
+#define SMS_IMU_SUPPLY_PIN		10
+
 
 #define PI						(3.1415926535897932384626433832795)
 
