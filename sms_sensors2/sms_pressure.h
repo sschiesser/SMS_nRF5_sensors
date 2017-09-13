@@ -10,6 +10,8 @@
 #define SMS_PRESSURE_POLL_MS		49
 
 #define SMS_PRESSURE_SUPPLY_PIN		15
+#define SMS_PRESSURE_SW_ON			1
+#define SMS_PRESSURE_SW_OFF			0
 
 
 //void pressure_startup(void);

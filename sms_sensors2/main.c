@@ -565,9 +565,9 @@ static void supplies_init(void)
 {
 	NRF_LOG_INFO("Preparing supply ports as outputs\r\n");
 	nrf_gpio_cfg_output(SMS_PRESSURE_SUPPLY_PIN);
-	nrf_gpio_pin_write(SMS_PRESSURE_SUPPLY_PIN, 0);
+	nrf_gpio_pin_write(SMS_PRESSURE_SUPPLY_PIN, SMS_PRESSURE_SW_OFF);
 	nrf_gpio_cfg_output(SMS_IMU_SUPPLY_PIN);
-	nrf_gpio_pin_write(SMS_IMU_SUPPLY_PIN, 0);
+	nrf_gpio_pin_write(SMS_IMU_SUPPLY_PIN, SMS_IMU_SW_OFF);
 }
 
 
@@ -936,8 +936,8 @@ void sensors_stop(void)
 {
 	NRF_LOG_INFO("Stopping sensors...\n\r");
 	NRF_LOG_INFO("...switch off supply\n\r");
-	nrf_gpio_pin_write(SMS_PRESSURE_SUPPLY_PIN, 0);
-	nrf_gpio_pin_write(SMS_IMU_SUPPLY_PIN, 0);
+	nrf_gpio_pin_write(SMS_PRESSURE_SUPPLY_PIN, SMS_PRESSURE_SW_OFF);
+	nrf_gpio_pin_write(SMS_IMU_SUPPLY_PIN, SMS_IMU_SW_OFF);
 	
 	NRF_LOG_INFO("...polling timers\n\r");
 	app_timer_stop(pressure_poll_int_id);
@@ -1015,23 +1015,18 @@ int main(void)
 		{
 			NRF_LOG_INFO("Starting MS58...\n\r");
 			NRF_LOG_INFO("...switch on supply\n\r");
-			nrf_gpio_pin_write(SMS_PRESSURE_SUPPLY_PIN, 1);
+			nrf_gpio_pin_write(SMS_PRESSURE_SUPPLY_PIN, SMS_PRESSURE_SW_ON);
 	
-			NRF_LOG_INFO("...enable & initialize: ");
+			NRF_LOG_INFO("...enable & initialize\n\r");
 			pressure_enable();
 			NRF_LOG_INFO("MS58? %d\r\n", ms58_config.dev_en);
 	
-//	NRF_LOG_INFO("...timers\n\r");
-//	app_timer_start(pressure_poll_int_id,
-//					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_PRESSURE_POLL_MS, UNIT_1_00_MS), 0),
-//					NULL);
-//	app_timer_start(imu_poll_int_id,
-//					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_IMU_POLL_MS, UNIT_1_00_MS), 0),
-//					NULL);
-////	nrf_drv_timer_enable(&TIMER_DELTA_US);
-//	
-//	ms58_interrupt.enabled = true;
-//	bno055_interrupt.enabled = true;
+			NRF_LOG_INFO("...timer\n\r");
+			app_timer_start(pressure_poll_int_id,
+							APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_PRESSURE_POLL_MS, UNIT_1_00_MS), 0),
+							NULL);
+	
+			ms58_interrupt.enabled = ms58_config.dev_en;
 			ms58_config.dev_start = false;
 		}
 		
@@ -1039,23 +1034,18 @@ int main(void)
 		{
 			NRF_LOG_INFO("Starting BNO055...\n\r");
 			NRF_LOG_INFO("...switch on supply\n\r");
-			nrf_gpio_pin_write(SMS_IMU_SUPPLY_PIN, 1);
+			nrf_gpio_pin_write(SMS_IMU_SUPPLY_PIN, SMS_IMU_SW_ON);
 	
-			NRF_LOG_INFO("...enable & initialize: ");
+			NRF_LOG_INFO("...enable & initialize\n\r");
 			imu_enable();
 			NRF_LOG_INFO("BNO055? %d\r\n", bno055_config.dev_en);
 	
-//	NRF_LOG_INFO("...timers\n\r");
-//	app_timer_start(pressure_poll_int_id,
-//					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_PRESSURE_POLL_MS, UNIT_1_00_MS), 0),
-//					NULL);
-//	app_timer_start(imu_poll_int_id,
-//					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_IMU_POLL_MS, UNIT_1_00_MS), 0),
-//					NULL);
-////	nrf_drv_timer_enable(&TIMER_DELTA_US);
-//	
-//	ms58_interrupt.enabled = true;
-//	bno055_interrupt.enabled = true;
+			NRF_LOG_INFO("...timer\n\r");
+			app_timer_start(imu_poll_int_id,
+							APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_IMU_POLL_MS, UNIT_1_00_MS), 0),
+							NULL);
+
+			bno055_interrupt.enabled = bno055_config.dev_en;
 			bno055_config.dev_start = false;
 		}
 		
