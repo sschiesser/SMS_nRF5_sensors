@@ -110,6 +110,7 @@ enum sms_states m_device_state;
 
 static nrf_saadc_value_t     			m_buffer_pool[2][SAMPLES_IN_BUFFER];
 static uint32_t							m_adc_evt_counter;
+bool									batgauge_new_value = false;
 
 static uint8_t 							button_mask = 0;
 static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;/**< Handle of the current connection. */
@@ -126,7 +127,7 @@ ble_smss_t								m_smss_service;
 APP_TIMER_DEF(pressure_poll_int_id);
 APP_TIMER_DEF(imu_poll_int_id);
 APP_TIMER_DEF(button_press_timer_id);
-APP_TIMER_DEF(batgauge_event_id);
+APP_TIMER_DEF(saadc_timer_id);
 //APP_TIMER_DEF(micros_cnt_id);
 
 //// drv timer instantiation
@@ -368,9 +369,9 @@ void twi_event_handler(nrf_drv_twi_evt_t const * p_event, void * p_context)
 			break;
 	}	
 }
-void saadc_callback(nrf_drv_saadc_evt_t const * p_event)
+void batgauge_event_handler(nrf_drv_saadc_evt_t const * p_event)
 {
-	NRF_LOG_INFO("SAADC event!!\n\r");
+	NRF_LOG_DEBUG("Batgauge event!!\n\r");
 	if(p_event->type == NRF_DRV_SAADC_EVT_DONE)
 	{
 		ret_code_t err_code;
@@ -378,17 +379,19 @@ void saadc_callback(nrf_drv_saadc_evt_t const * p_event)
 		APP_ERROR_CHECK(err_code);
 		
 		int i;
-		NRF_LOG_INFO("ADC event number: %d\n\r", (int)m_adc_evt_counter);
+		NRF_LOG_DEBUG("ADC event number: %d\n\r", (int)m_adc_evt_counter);
 		for(i = 0; i < SAMPLES_IN_BUFFER; i++)
 		{
-			NRF_LOG_INFO("%d\r\n", p_event->data.done.p_buffer[i]);
+			m_buffer_pool[0][i] = p_event->data.done.p_buffer[i];
+			NRF_LOG_INFO("%d\r\n", m_buffer_pool[0][i]);
 		}
 		m_adc_evt_counter++;
+		batgauge_new_value = true;
 	}
 }
-static void batgauge_event_handler(void * p_context)
+static void saadc_timer_handler(void * p_context)
 {
-	NRF_LOG_INFO("Batgauge event\n\r");
+	NRF_LOG_DEBUG("saadc timer done\n\r");
 	nrf_drv_saadc_sample();
 }
 
@@ -615,7 +618,7 @@ static void batgauge_init(void)
 	nrf_saadc_channel_config_t channel_config =
 		NRF_DRV_SAADC_DEFAULT_CHANNEL_CONFIG_SE(NRF_SAADC_INPUT_AIN0);
 	
-	err_code = nrf_drv_saadc_init(NULL, saadc_callback);
+	err_code = nrf_drv_saadc_init(NULL, batgauge_event_handler);
 	APP_ERROR_CHECK(err_code);
 	
 	err_code = nrf_drv_saadc_channel_init(0, &channel_config);
@@ -963,7 +966,7 @@ void batgauge_start(void)
 	nrf_drv_saadc_sample();
 	
 	NRF_LOG_INFO("Starting batgauge timer\n\r");
-	app_timer_start(batgauge_event_id,
+	app_timer_start(saadc_timer_id,
 		APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_BATGAUGE_SAMPLE_MS, UNIT_1_00_MS), 0),
 		NULL);
 
@@ -993,9 +996,9 @@ static void timers_create(void)
 								button_press_timeout_handler);
 	APP_ERROR_CHECK(err_code);
 	
-	err_code = app_timer_create(&batgauge_event_id,
+	err_code = app_timer_create(&saadc_timer_id,
 								APP_TIMER_MODE_REPEATED,
-								batgauge_event_handler);
+								saadc_timer_handler);
 	APP_ERROR_CHECK(err_code);
 }
 
@@ -1099,7 +1102,6 @@ int main(void)
 	spi_init();
 	twi_init();
 	batgauge_init();
-//	batgauge_event_init();
 	
 	// Instantiate
 	timers_create();
@@ -1113,7 +1115,7 @@ int main(void)
     APP_ERROR_CHECK(err_code);
 		
 	// Start advertising
-//	advertising_start();
+	advertising_start();
 	
 	// Enable battery gauge measurement
 	batgauge_start();
@@ -1188,6 +1190,19 @@ int main(void)
 //			bno055_interrupt.rts = true;
 			
 			nrf_gpio_pin_write(DBG2_PIN, 0);
+		}
+		
+		if(batgauge_new_value)
+		{
+			batgauge_new_value = false;
+			uint8_t i;
+			uint32_t sum = 0;
+			uint32_t avg = 0;
+			for(i = 0; i < SAMPLES_IN_BUFFER; i++) {
+				sum += m_buffer_pool[0][i];
+			}
+			avg = sum / SAMPLES_IN_BUFFER;
+			NRF_LOG_INFO("Batgauge avg: %d (sum: %d)\n\r", avg, sum);
 		}
 		
 		if((ms58_interrupt.enabled) && (ms58_interrupt.rts))
