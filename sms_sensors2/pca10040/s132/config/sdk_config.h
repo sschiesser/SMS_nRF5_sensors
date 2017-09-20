@@ -1383,7 +1383,7 @@
 // <e> PPI_ENABLED - nrf_drv_ppi - PPI peripheral driver
 //==========================================================
 #ifndef PPI_ENABLED
-#define PPI_ENABLED 1
+#define PPI_ENABLED 0
 #endif
 #if  PPI_ENABLED
 // <e> PPI_CONFIG_LOG_ENABLED - Enables logging in the module.
@@ -2399,7 +2399,7 @@
 // <e> TIMER_ENABLED - nrf_drv_timer - TIMER periperal driver
 //==========================================================
 #ifndef TIMER_ENABLED
-#define TIMER_ENABLED 1
+#define TIMER_ENABLED 0
 #endif
 #if  TIMER_ENABLED
 // <o> TIMER_DEFAULT_CONFIG_FREQUENCY  - Timer frequency if in Timer mode
