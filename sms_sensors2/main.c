@@ -33,6 +33,8 @@
 #include "ble_gap.h"
 #include "nrf_delay.h"
 #include "nrf_drv_timer.h"
+#include "nrf_drv_saadc.h"
+#include "nrf_drv_ppi.h"
 #include "nrf_drv_spi.h"
 #include "nrf_drv_twi.h"
 #include "ble_smss.h"
@@ -94,6 +96,9 @@
 #define DEAD_BEEF                       0xDEADBEEF								/**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
 #define SMS_BUTTON_LONG_PRESS_MS		3000
+#define SMS_BATGAUGE_SAMPLE_MS			1000
+
+#define SAMPLES_IN_BUFFER 				10
 
 enum sms_states {
 	SMS_OFF,
@@ -102,6 +107,11 @@ enum sms_states {
 };
 
 enum sms_states m_device_state;
+
+static const nrf_drv_timer_t			m_timer = NRF_DRV_TIMER_INSTANCE(0);
+static nrf_saadc_value_t     			m_buffer_pool[2][SAMPLES_IN_BUFFER];
+static nrf_ppi_channel_t				m_ppi_channel;
+static uint32_t							m_adc_evt_counter;
 
 static uint8_t 							button_mask = 0;
 static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;/**< Handle of the current connection. */
@@ -118,6 +128,7 @@ ble_smss_t								m_smss_service;
 APP_TIMER_DEF(pressure_poll_int_id);
 APP_TIMER_DEF(imu_poll_int_id);
 APP_TIMER_DEF(button_press_timer_id);
+APP_TIMER_DEF(batgauge_event_id);
 //APP_TIMER_DEF(micros_cnt_id);
 
 //// drv timer instantiation
@@ -359,6 +370,30 @@ void twi_event_handler(nrf_drv_twi_evt_t const * p_event, void * p_context)
 			break;
 	}	
 }
+void saadc_callback(nrf_drv_saadc_evt_t const * p_event)
+{
+	NRF_LOG_INFO("SAADC event!!\n\r");
+	if(p_event->type == NRF_DRV_SAADC_EVT_DONE)
+	{
+		ret_code_t err_code;
+		err_code = nrf_drv_saadc_buffer_convert(p_event->data.done.p_buffer, SAMPLES_IN_BUFFER);
+		APP_ERROR_CHECK(err_code);
+		
+		int i;
+		NRF_LOG_INFO("ADC event number: %d\n\r", (int)m_adc_evt_counter);
+		for(i = 0; i < SAMPLES_IN_BUFFER; i++)
+		{
+			NRF_LOG_INFO("%d\r\n", p_event->data.done.p_buffer[i]);
+		}
+		m_adc_evt_counter++;
+	}
+}
+static void batgauge_event_handler(void * p_context)
+{
+	NRF_LOG_INFO("Batgauge event\n\r");
+	nrf_drv_saadc_sample();
+}
+
 // BLE
 /**@brief Function for handling a Connection Parameters error.
  *
@@ -570,6 +605,61 @@ static void supplies_init(void)
 	nrf_gpio_pin_write(SMS_IMU_SUPPLY_PIN, SMS_IMU_SW_OFF);
 }
 
+/**@brief Function to initialize the sensors' power supplies ports.
+ *
+ *
+ * @details Set up supply ports to output and to low
+ */
+static void batgauge_init(void)
+{
+	NRF_LOG_INFO("Preparing AIN0 as battery level input\r\n");
+	ret_code_t err_code;
+	nrf_saadc_channel_config_t channel_config =
+		NRF_DRV_SAADC_DEFAULT_CHANNEL_CONFIG_SE(NRF_SAADC_INPUT_AIN0);
+	
+	err_code = nrf_drv_saadc_init(NULL, saadc_callback);
+	APP_ERROR_CHECK(err_code);
+	
+	err_code = nrf_drv_saadc_channel_init(0, &channel_config);
+	APP_ERROR_CHECK(err_code);
+	
+	err_code = nrf_drv_saadc_buffer_convert(m_buffer_pool[0], SAMPLES_IN_BUFFER);
+	APP_ERROR_CHECK(err_code);
+	
+	err_code = nrf_drv_saadc_buffer_convert(m_buffer_pool[1], SAMPLES_IN_BUFFER);
+	APP_ERROR_CHECK(err_code);
+}
+
+
+//void batgauge_event_init(void)
+//{
+//	NRF_LOG_INFO("Initialize batgauge event ");
+//	ret_code_t err_code;
+//	err_code = nrf_drv_ppi_init();
+//	APP_ERROR_CHECK(err_code);
+//	
+//	nrf_drv_timer_config_t timer_cfg = NRF_DRV_TIMER_DEFAULT_CONFIG;
+//	timer_cfg.bit_width = NRF_TIMER_BIT_WIDTH_32;
+//	err_code = nrf_drv_timer_init(&m_timer, &timer_cfg, gauge_timer_handler);
+//	APP_ERROR_CHECK(err_code);
+//	
+//	/* setup m_timer for compare event every 1000 ms */
+//	uint32_t ticks = nrf_drv_timer_ms_to_ticks(&m_timer, 1000);
+//	nrf_drv_timer_extended_compare(&m_timer,
+//									NRF_TIMER_CC_CHANNEL0,
+//									ticks,
+//									NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK,
+//									false);
+//	nrf_drv_timer_enable(&m_timer);
+//	
+//	uint32_t timer_compare_event_addr = nrf_drv_timer_compare_event_address_get(&m_timer, NRF_TIMER_CC_CHANNEL0);
+//	uint32_t saadc_sample_task_addr = nrf_drv_saadc_sample_task_get();
+//	
+//	/* setup ppi channel so that timer compare event is triggering sample task in SAADC */
+//	err_code = nrf_drv_ppi_channel_alloc(&m_ppi_channel);
+//	APP_ERROR_CHECK(err_code);
+//	err_code = nrf_drv_ppi_channel_assign(m_ppi_channel, timer_compare_event_addr, saadc_sample_task_addr);
+//}
 
 /**@brief Function for initializing the button handler module.
  */
@@ -869,6 +959,17 @@ void advertising_start(void)
 }
 
 
+void batgauge_start(void)
+{
+	NRF_LOG_INFO("Starting saadc\n\r");
+	nrf_drv_saadc_sample();
+	
+	NRF_LOG_INFO("Starting batgauge timer\n\r");
+	app_timer_start(batgauge_event_id,
+		APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_BATGAUGE_SAMPLE_MS, UNIT_1_00_MS), 0),
+		NULL);
+
+}
 
 
 /* ====================================================================
@@ -892,6 +993,11 @@ static void timers_create(void)
 	err_code = app_timer_create(&button_press_timer_id,
 								APP_TIMER_MODE_SINGLE_SHOT,
 								button_press_timeout_handler);
+	APP_ERROR_CHECK(err_code);
+	
+	err_code = app_timer_create(&batgauge_event_id,
+								APP_TIMER_MODE_REPEATED,
+								batgauge_event_handler);
 	APP_ERROR_CHECK(err_code);
 }
 
@@ -954,6 +1060,13 @@ void button_press_timer_start(void)
 					NULL);
 }
 
+//void batgauge_event_enable(void)
+//{
+//	NRF_LOG_INFO("Enable batgauge event\r\n");
+////	ret_code_t err_code = nrf_drv_ppi_channel_enable(m_ppi_channel);
+////	APP_ERROR_CHECK(err_code);
+//}
+
 /* ====================================================================
  * MAIN
  * ==================================================================== */
@@ -974,6 +1087,7 @@ int main(void)
 	NRF_LOG_INFO("===============================\n\n\r");
 
 	// Initialize hardware & services
+	NRF_LOG_INFO("Initializing hardware...\n\r");
     leds_init();
     timers_init();
 	supplies_init();
@@ -984,24 +1098,27 @@ int main(void)
     advertising_init();
     conn_params_init();
 
-	
-	NRF_LOG_INFO("Initializing hardware...\n\r");
 	spi_init();
 	twi_init();
+	batgauge_init();
+//	batgauge_event_init();
 	
 	// Instantiate
 	timers_create();
 	
 	// Initialize & configure peripherals
-//	pressure_enable();
-//	imu_enable();
+	pressure_enable();
+	imu_enable();
 	ms58_config.dev_start = false;
 	bno055_config.dev_start = false;
     err_code = app_button_enable();
     APP_ERROR_CHECK(err_code);
 		
 	// Start advertising
-	advertising_start();
+//	advertising_start();
+	
+	// Enable battery gauge measurement
+	batgauge_start();
 
     // Enter main loop.
     for (;;)
