@@ -97,7 +97,7 @@
 #define DEAD_BEEF                       0xDEADBEEF								/**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
 #define SMS_BUTTON_LONG_PRESS_MS		3000
-#define SMS_BATGAUGE_SAMPLE_MS			1000
+#define SMS_BATGAUGE_SAMPLE_MS			500
 
 #define SAMPLES_IN_BUFFER 				10
 
@@ -579,6 +579,7 @@ static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
 //	NRF_LOG_INFO("BLE event dispatch: %d\n\r", p_ble_evt->header.evt_id);
     on_ble_evt(p_ble_evt);
     ble_smss_on_ble_evt(&m_smss_service, p_ble_evt);
+	ble_bas_on_ble_evt(&m_bas, p_ble_evt);
     ble_conn_params_on_ble_evt(p_ble_evt);
 }
 /* ====================================================================
