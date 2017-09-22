@@ -38,6 +38,7 @@
 #include "nrf_drv_spi.h"
 #include "nrf_drv_twi.h"
 #include "ble_smss.h"
+#include "ble_bas.h"
 #include "ble_advertising.h"
 
 #include "sms_pressure.h"
@@ -116,6 +117,8 @@ static uint8_t 							button_mask = 0;
 static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;/**< Handle of the current connection. */
 //static ble_lbs_t                        m_lbs;								/**< LED Button Service instance. */
 ble_smss_t								m_smss_service;
+static ble_bas_t m_bas;                                   /**< Structure used to identify the battery service. */
+
 
 /* ====================================================================
  * VARIABLES
@@ -856,9 +859,31 @@ static void app_update_function(ble_smss_t * p_smss, uint8_t *data)
  */
 static void services_init(void)
 {
+	uint32_t err_code;
+	
 	ble_smss_init_t init;
 	init.app_update_function = app_update_function;
 	ble_smss_init(&m_smss_service, &init);
+	 
+    ble_bas_init_t bas_init;
+
+    // Initialize Battery Service.
+    memset(&bas_init, 0, sizeof(bas_init));
+
+	// Here the sec level for the Battery Service can be changed/increased.
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&bas_init.battery_level_char_attr_md.cccd_write_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&bas_init.battery_level_char_attr_md.read_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&bas_init.battery_level_char_attr_md.write_perm);
+
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&bas_init.battery_level_report_read_perm);
+
+    bas_init.evt_handler          = NULL;
+    bas_init.support_notification = true;
+    bas_init.p_report_ref         = NULL;
+    bas_init.initial_batt_level   = 100;
+
+    err_code = ble_bas_init(&m_bas, &bas_init);
+    APP_ERROR_CHECK(err_code);
 }
 
 
