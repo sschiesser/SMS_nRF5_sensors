@@ -112,6 +112,7 @@ enum sms_states m_device_state;
 static nrf_saadc_value_t     			m_buffer_pool[2][SAMPLES_IN_BUFFER];
 static uint32_t							m_adc_evt_counter;
 bool									batgauge_new_value = false;
+bool									batgauge_rts = false;
 
 static uint8_t 							button_mask = 0;
 static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;/**< Handle of the current connection. */
@@ -1220,6 +1221,7 @@ int main(void)
 		if(batgauge_new_value)
 		{
 			batgauge_new_value = false;
+			uint32_t err_code;
 			uint8_t i;
 			uint32_t sum = 0;
 			uint32_t avg = 0;
@@ -1228,6 +1230,15 @@ int main(void)
 			}
 			avg = sum / SAMPLES_IN_BUFFER;
 			NRF_LOG_INFO("Batgauge avg: %d (sum: %d)\n\r", avg, sum);
+			err_code = ble_bas_battery_level_update(&m_bas, (uint8_t)avg);
+			if ((err_code != NRF_SUCCESS) &&
+				(err_code != NRF_ERROR_INVALID_STATE) &&
+				(err_code != BLE_ERROR_NO_TX_PACKETS) &&
+				(err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)
+			   )
+			{
+				APP_ERROR_HANDLER(err_code);
+			}
 		}
 		
 		if((ms58_interrupt.enabled) && (ms58_interrupt.rts))
