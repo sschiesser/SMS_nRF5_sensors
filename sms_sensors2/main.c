@@ -76,7 +76,7 @@
 #define BOOTLOADER_DFU_START			(0xB1)
 
 #define APP_ADV_INTERVAL                64										/**< The advertising interval (in units of 0.625 ms; this value corresponds to 40 ms). */
-#define APP_ADV_TIMEOUT_IN_SECONDS      120
+#define APP_ADV_TIMEOUT_IN_SECONDS      10
 //#define APP_ADV_TIMEOUT_IN_SECONDS      BLE_GAP_ADV_TIMEOUT_LIMITED_MAX			/**< The advertising time-out (in units of seconds). When set to 0, we will never time out. */
 
 #define APP_TIMER_PRESCALER             0										/**< Value of the RTC1 PRESCALER register. */
@@ -98,6 +98,7 @@
 
 #define SMS_BUTTON_LONG_PRESS_MS		3000
 #define SMS_BATGAUGE_SAMPLE_MS			500
+#define SMS_ADVERTISE_BLINK_MS			500
 
 #define SAMPLES_IN_BUFFER 				10
 
@@ -132,6 +133,8 @@ APP_TIMER_DEF(pressure_poll_int_id);
 APP_TIMER_DEF(imu_poll_int_id);
 APP_TIMER_DEF(button_press_timer_id);
 APP_TIMER_DEF(saadc_timer_id);
+APP_TIMER_DEF(led1_timer_id);
+APP_TIMER_DEF(led2_timer_id);
 //APP_TIMER_DEF(micros_cnt_id);
 
 //// drv timer instantiation
@@ -206,19 +209,18 @@ static void sms_switch_off(bool restart)
 	if(m_device_state == SMS_ADVERTISING) {
 		err_code = sd_ble_gap_adv_stop();
 		NRF_LOG_INFO("Adv stop err_code: 0x%04x\n\r", err_code);
-        bsp_board_led_off(ADVERTISING_LED_PIN);
 		m_device_state = SMS_OFF;
 	}
 	if(m_device_state == SMS_RUNNING) {
-		err_code = app_timer_stop_all();
-		NRF_LOG_INFO("Timer stop err_code: 0x%04x\n\r", err_code);
-
 		err_code = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
 		NRF_LOG_INFO("Disconnect err_code: 0x%04x\n\r", err_code);
 		if(!restart) {
 			m_device_state = SMS_OFF;
 		}
 	}
+	
+	bsp_board_leds_off();
+	app_timer_stop_all();
 	
 	m_conn_handle = BLE_CONN_HANDLE_INVALID;
 	
@@ -399,6 +401,14 @@ static void saadc_timer_handler(void * p_context)
 	nrf_drv_saadc_sample();
 }
 
+static void led1_timer_handler(void * p_context)
+{
+	bsp_board_led_invert(ADVERTISING_LED_PIN);
+}
+static void led2_timer_handler(void * p_context)
+{
+}
+
 // BLE
 /**@brief Function for handling a Connection Parameters error.
  *
@@ -466,6 +476,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
     {
         case BLE_GAP_EVT_CONNECTED:
 			NRF_LOG_INFO("Connected\r\n");
+			app_timer_stop(led1_timer_id);
             bsp_board_led_off(ADVERTISING_LED_PIN);
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
 			
@@ -495,6 +506,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
             break; // BLE_GAP_EVT_SEC_PARAMS_REQUEST
 		
 		case BLE_GAP_EVT_TIMEOUT:
+			NRF_LOG_INFO("GAP Event Timeout.\r\n");
 			sms_switch_off(false);
 			break;
 
@@ -637,35 +649,7 @@ static void batgauge_init(void)
 }
 
 
-//void batgauge_event_init(void)
-//{
-//	NRF_LOG_INFO("Initialize batgauge event ");
-//	ret_code_t err_code;
-//	err_code = nrf_drv_ppi_init();
-//	APP_ERROR_CHECK(err_code);
-//	
-//	nrf_drv_timer_config_t timer_cfg = NRF_DRV_TIMER_DEFAULT_CONFIG;
-//	timer_cfg.bit_width = NRF_TIMER_BIT_WIDTH_32;
-//	err_code = nrf_drv_timer_init(&m_timer, &timer_cfg, gauge_timer_handler);
-//	APP_ERROR_CHECK(err_code);
-//	
-//	/* setup m_timer for compare event every 1000 ms */
-//	uint32_t ticks = nrf_drv_timer_ms_to_ticks(&m_timer, 1000);
-//	nrf_drv_timer_extended_compare(&m_timer,
-//									NRF_TIMER_CC_CHANNEL0,
-//									ticks,
-//									NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK,
-//									false);
-//	nrf_drv_timer_enable(&m_timer);
-//	
-//	uint32_t timer_compare_event_addr = nrf_drv_timer_compare_event_address_get(&m_timer, NRF_TIMER_CC_CHANNEL0);
-//	uint32_t saadc_sample_task_addr = nrf_drv_saadc_sample_task_get();
-//	
-//	/* setup ppi channel so that timer compare event is triggering sample task in SAADC */
-//	err_code = nrf_drv_ppi_channel_alloc(&m_ppi_channel);
-//	APP_ERROR_CHECK(err_code);
-//	err_code = nrf_drv_ppi_channel_assign(m_ppi_channel, timer_compare_event_addr, saadc_sample_task_addr);
-//}
+
 
 /**@brief Function for initializing the button handler module.
  */
@@ -748,6 +732,16 @@ static void timers_init(void)
 	err_code = app_timer_create(&saadc_timer_id,
 								APP_TIMER_MODE_REPEATED,
 								saadc_timer_handler);
+	APP_ERROR_CHECK(err_code);
+	
+	err_code = app_timer_create(&led1_timer_id,
+								APP_TIMER_MODE_REPEATED,
+								led1_timer_handler);
+	APP_ERROR_CHECK(err_code);
+	
+	err_code = app_timer_create(&led2_timer_id,
+								APP_TIMER_MODE_REPEATED,
+								led2_timer_handler);
 	APP_ERROR_CHECK(err_code);
 	
 //	// Initialize the timer driver to count microseconds
@@ -988,6 +982,10 @@ void advertising_start(void)
 	NRF_LOG_INFO("Starting advertising for %d seconds\n\r", APP_ADV_TIMEOUT_IN_SECONDS);
 
     bsp_board_led_on(ADVERTISING_LED_PIN);
+	app_timer_start(led1_timer_id,
+		APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_ADVERTISE_BLINK_MS, UNIT_1_00_MS), 0),
+		NULL);
+
 	err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
 	APP_ERROR_CHECK(err_code);
 	
