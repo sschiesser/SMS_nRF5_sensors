@@ -21,10 +21,10 @@ extern "C" {
 // LEDs definitions for SMS_SENSORS2 custom board
 #define LEDS_NUMBER    2
 
-#define LED_START      16
-#define LED_1          16
-#define LED_2          17
-#define LED_STOP       17
+#define LED_START      17
+#define LED_1          17
+#define LED_2          19
+#define LED_STOP       19
    
 #define LEDS_ACTIVE_STATE 0
 

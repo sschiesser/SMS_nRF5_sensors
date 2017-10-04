@@ -724,10 +724,31 @@ void twi_init(void)
  */
 static void timers_init(void)
 {
-//	uint32_t err_code;
+	uint32_t err_code;
 
     // Initialize application timer module, making it use the scheduler
     APP_TIMER_INIT(APP_TIMER_PRESCALER, APP_TIMER_OP_QUEUE_SIZE, false);
+	
+	// Create timers
+	err_code = app_timer_create(&pressure_poll_int_id,
+								APP_TIMER_MODE_REPEATED,
+								pressure_poll_int_handler);
+	APP_ERROR_CHECK(err_code);
+
+	err_code = app_timer_create(&imu_poll_int_id,
+								APP_TIMER_MODE_REPEATED,
+								imu_poll_int_handler);
+	APP_ERROR_CHECK(err_code);
+	
+	err_code = app_timer_create(&button_press_timer_id,
+								APP_TIMER_MODE_SINGLE_SHOT,
+								button_press_timeout_handler);
+	APP_ERROR_CHECK(err_code);
+	
+	err_code = app_timer_create(&saadc_timer_id,
+								APP_TIMER_MODE_REPEATED,
+								saadc_timer_handler);
+	APP_ERROR_CHECK(err_code);
 	
 //	// Initialize the timer driver to count microseconds
 //	nrf_drv_timer_config_t timer_config = NRF_DRV_TIMER_DEFAULT_CONFIG;
@@ -1005,29 +1026,29 @@ void batgauge_start(void)
  * --------------------------------------------------------------------
  *
  * ==================================================================== */
-static void timers_create(void)
-{
-	uint32_t err_code;
-	err_code = app_timer_create(&pressure_poll_int_id,
-								APP_TIMER_MODE_REPEATED,
-								pressure_poll_int_handler);
-	APP_ERROR_CHECK(err_code);
+//static void timers_create(void)
+//{
+//	uint32_t err_code;
+//	err_code = app_timer_create(&pressure_poll_int_id,
+//								APP_TIMER_MODE_REPEATED,
+//								pressure_poll_int_handler);
+//	APP_ERROR_CHECK(err_code);
 
-	err_code = app_timer_create(&imu_poll_int_id,
-								APP_TIMER_MODE_REPEATED,
-								imu_poll_int_handler);
-	APP_ERROR_CHECK(err_code);
-	
-	err_code = app_timer_create(&button_press_timer_id,
-								APP_TIMER_MODE_SINGLE_SHOT,
-								button_press_timeout_handler);
-	APP_ERROR_CHECK(err_code);
-	
-	err_code = app_timer_create(&saadc_timer_id,
-								APP_TIMER_MODE_REPEATED,
-								saadc_timer_handler);
-	APP_ERROR_CHECK(err_code);
-}
+//	err_code = app_timer_create(&imu_poll_int_id,
+//								APP_TIMER_MODE_REPEATED,
+//								imu_poll_int_handler);
+//	APP_ERROR_CHECK(err_code);
+//	
+//	err_code = app_timer_create(&button_press_timer_id,
+//								APP_TIMER_MODE_SINGLE_SHOT,
+//								button_press_timeout_handler);
+//	APP_ERROR_CHECK(err_code);
+//	
+//	err_code = app_timer_create(&saadc_timer_id,
+//								APP_TIMER_MODE_REPEATED,
+//								saadc_timer_handler);
+//	APP_ERROR_CHECK(err_code);
+//}
 
 
 /**@brief Function for the Power Manager.
@@ -1105,8 +1126,8 @@ int main(void)
     ret_code_t err_code;
     
     // Setup log
-    err_code = NRF_LOG_INIT(NULL);
-    APP_ERROR_CHECK(err_code);
+	err_code = NRF_LOG_INIT(NULL);
+	APP_ERROR_CHECK(err_code);
 	uint8_t fw_msb, fw_lsb;
 	fw_msb = ((SMS_VERSION_ID & 0xFF) > 8);
 	fw_lsb = (SMS_VERSION_ID & 0x0F);
@@ -1130,8 +1151,8 @@ int main(void)
 	twi_init();
 	batgauge_init();
 	
-	// Instantiate
-	timers_create();
+//	// Instantiate
+//	timers_create();
 	
 	// Initialize & configure peripherals
 	pressure_enable();
@@ -1221,6 +1242,7 @@ int main(void)
 		
 		if(batgauge_new_value)
 		{
+			bsp_board_led_invert(BSP_BOARD_LED_0);
 			batgauge_new_value = false;
 			uint32_t err_code;
 			uint8_t i;
