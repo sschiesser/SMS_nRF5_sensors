@@ -99,6 +99,8 @@
 #define SMS_BUTTON_LONG_PRESS_MS		3000
 #define SMS_BATGAUGE_SAMPLE_MS			500
 #define SMS_ADVERTISE_BLINK_MS			500
+#define SMS_CONNECT_BLINK_MS			100
+#define SMS_GAP_TIMEOUT_BLINK_MS		40
 
 #define SAMPLES_IN_BUFFER 				10
 
@@ -108,18 +110,31 @@ enum sms_states {
 	SMS_RUNNING
 };
 
+enum sms_led_states {
+	LED_ADVERTISING,
+	LED_CONNECTED,
+	LED_DISCONNECTED,
+	LED_GAP_TIMEOUT,
+	LED_POLLING,
+	LED_SENDING,
+	LED_CALIBRATING,
+	LED_ERROR
+};
+
 enum sms_states m_device_state;
+enum sms_led_states m_led_state;
 
 static nrf_saadc_value_t     			m_buffer_pool[2][SAMPLES_IN_BUFFER];
 static uint32_t							m_adc_evt_counter;
 bool									batgauge_new_value = false;
 bool									batgauge_rts = false;
+uint8_t									m_led_blink_cnt;
 
 static uint8_t 							button_mask = 0;
 static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;/**< Handle of the current connection. */
 //static ble_lbs_t                        m_lbs;								/**< LED Button Service instance. */
 ble_smss_t								m_smss_service;
-static ble_bas_t m_bas;                                   /**< Structure used to identify the battery service. */
+static ble_bas_t 						m_bas;                                   /**< Structure used to identify the battery service. */
 
 
 /* ====================================================================
@@ -175,6 +190,7 @@ void advertising_start(void);
 void sensors_start(void);
 void sensors_stop(void);
 void button_press_timer_start(void);
+void batgauge_start(void);
 
 /**@brief Function for assert macro callback.
  *
@@ -233,6 +249,7 @@ static void sms_switch_on(void)
 {
 	NRF_LOG_INFO("Switching-on SMS sensors...\n\r");
 	advertising_start();
+	batgauge_start();
 }
 
 
@@ -404,6 +421,24 @@ static void saadc_timer_handler(void * p_context)
 static void led1_timer_handler(void * p_context)
 {
 	bsp_board_led_invert(ADVERTISING_LED_PIN);
+	switch(m_led_state) {
+		case LED_ADVERTISING:
+			break;
+		case LED_CONNECTED:
+			if(m_led_blink_cnt++ > 4) {
+				bsp_board_led_off(ADVERTISING_LED_PIN);
+				app_timer_stop(led1_timer_id);
+			}
+			break;
+		case LED_GAP_TIMEOUT:
+			if(m_led_blink_cnt++ > 10) {
+				bsp_board_led_off(ADVERTISING_LED_PIN);
+				app_timer_stop(led1_timer_id);
+			}
+			break;
+		default:
+			break;
+	}
 }
 static void led2_timer_handler(void * p_context)
 {
@@ -477,9 +512,13 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
         case BLE_GAP_EVT_CONNECTED:
 			NRF_LOG_INFO("Connected\r\n");
 			app_timer_stop(led1_timer_id);
-            bsp_board_led_off(ADVERTISING_LED_PIN);
+			bsp_board_led_on(ADVERTISING_LED_PIN);
+			app_timer_start(led1_timer_id,
+							APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_CONNECT_BLINK_MS, UNIT_1_00_MS), 0),
+							NULL);
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
-			
+			m_led_state = LED_CONNECTED;
+			m_led_blink_cnt = 0;
 			m_device_state = SMS_RUNNING;
 			
 			ms58_config.dev_start = true;
@@ -489,11 +528,11 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 
         case BLE_GAP_EVT_DISCONNECTED:
 			NRF_LOG_INFO("Disconnected\r\n");
-//            m_conn_handle = BLE_CONN_HANDLE_INVALID;
 			sensors_stop();
-			if(m_device_state == SMS_RUNNING) {
-				advertising_start();
-			}
+			app_timer_stop(led1_timer_id);
+			bsp_board_led_off(ADVERTISING_LED_PIN);
+			advertising_start();
+
             break; // BLE_GAP_EVT_DISCONNECTED
 
         case BLE_GAP_EVT_SEC_PARAMS_REQUEST:
@@ -508,6 +547,12 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 		case BLE_GAP_EVT_TIMEOUT:
 			NRF_LOG_INFO("GAP Event Timeout.\r\n");
 			sms_switch_off(false);
+			bsp_board_led_on(ADVERTISING_LED_PIN);
+			app_timer_start(led1_timer_id,
+							APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_GAP_TIMEOUT_BLINK_MS, UNIT_1_00_MS), 0),
+							NULL);
+			m_led_state = LED_GAP_TIMEOUT;
+			m_led_blink_cnt = 0;
 			break;
 
         case BLE_GATTS_EVT_SYS_ATTR_MISSING:
@@ -985,10 +1030,11 @@ void advertising_start(void)
 	app_timer_start(led1_timer_id,
 		APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_ADVERTISE_BLINK_MS, UNIT_1_00_MS), 0),
 		NULL);
-
 	err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
 	APP_ERROR_CHECK(err_code);
 	
+	m_led_state = LED_ADVERTISING;
+	m_led_blink_cnt = 0;
 	m_device_state = SMS_ADVERTISING;
 	
 //    // Start advertising

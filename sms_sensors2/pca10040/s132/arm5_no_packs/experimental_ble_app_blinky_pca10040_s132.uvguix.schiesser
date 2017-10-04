@@ -1816,10 +1816,10 @@
       <Doc>
         <Name>..\..\..\main.c</Name>
         <ColumnNumber>0</ColumnNumber>
-        <TopLine>177</TopLine>
-        <CurrentLine>215</CurrentLine>
+        <TopLine>367</TopLine>
+        <CurrentLine>534</CurrentLine>
         <Folding>1</Folding>
-        <ContractedFolders>190,232,293,362,366,378,398,412,417,420,444,456,466,581,607,617,631,656,672,686</ContractedFolders>
+        <ContractedFolders>206,310,379,383,395,415,447,452,455,479,491,501,626,652,662,676,701,717,731</ContractedFolders>
         <PaneID>0</PaneID>
       </Doc>
       <Doc>
