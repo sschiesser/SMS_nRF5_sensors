@@ -1480,6 +1480,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\..\..\..\components\libraries\fstorage\fstorage.c</FilePath>
             </File>
+            <File>
+              <FileName>low_power_pwm.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\components\libraries\low_power_pwm\low_power_pwm.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -3137,6 +3142,11 @@
               <FileName>fstorage.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\..\..\components\libraries\fstorage\fstorage.c</FilePath>
+            </File>
+            <File>
+              <FileName>low_power_pwm.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\components\libraries\low_power_pwm\low_power_pwm.c</FilePath>
             </File>
           </Files>
         </Group>

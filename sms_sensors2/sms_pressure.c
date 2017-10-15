@@ -6,6 +6,8 @@
 #include "nrf_log.h"
 #include "app_error.h"
 
+#define SMS_PRESS_RESET_MS		4
+
 extern const nrf_drv_spi_t spi_master_instance;
 extern volatile bool spi_xfer_done;
 extern uint8_t m_tx_buf[];
@@ -26,7 +28,7 @@ static void ms58_reset(void)
 	spi_xfer_done = false;
 	APP_ERROR_CHECK(nrf_drv_spi_transfer(&spi_master_instance, m_tx_buf, tx_len, m_rx_buf, rx_len));
 	while(!spi_xfer_done);
-	nrf_delay_ms(4);
+	nrf_delay_ms(SMS_PRESS_RESET_MS);
 }
 
 static void ms58_read_prom(void)
