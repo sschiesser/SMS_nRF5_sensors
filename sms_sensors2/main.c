@@ -493,7 +493,7 @@ static void pwm_handler(void * p_context)
 {
 	static uint16_t led_0, led_1;
 	static uint8_t blink_cnt;
-	uint32_t toggle_max = 0;
+	uint32_t toggle_max;
 	uint32_t err_code;
 	UNUSED_PARAMETER(p_context);
 
@@ -511,6 +511,7 @@ static void pwm_handler(void * p_context)
 				toggle_max = SMS_LED_BLINK_ULTRA_TICKS;
 				break;
 			default:
+				toggle_max = 0;
 				break;
 		}
 				
@@ -556,6 +557,7 @@ static void pwm_handler(void * p_context)
 				toggle_max = SMS_LED_BLINK_SLOW_TICKS;
 				break;
 			default:
+				toggle_max = 0;
 				break;
 		}
 		
@@ -569,6 +571,9 @@ static void pwm_handler(void * p_context)
 					err_code = low_power_pwm_duty_set(pwm_instance, SMS_LED_ON_DUTY);
 				}
 				APP_ERROR_CHECK(err_code);
+			}
+			else if(m_app_state.led[1] == LED_DISCONNECTED) {
+				m_app_state.pwm[1] = PWM_OFF;
 			}
 			led_1 = 0;
 		}
@@ -653,7 +658,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 
         case BLE_GAP_EVT_DISCONNECTED:
 			NRF_LOG_DEBUG("Disconnected\r\n");
-//			m_led_state = LED_DISCONNECTED;
+			m_app_state.led[1] = LED_DISCONNECTED;
 			sensors_stop();
 			if(m_app_state.running == SMS_RUNNING) {
 				advertising_start();
@@ -1414,6 +1419,7 @@ int main(void)
         }
 		
 		if(m_app_state.pwm[0] == PWM_OFF) low_power_pwm_stop(&low_power_pwm_0);
+		if(m_app_state.pwm[1] == PWM_OFF) low_power_pwm_stop(&low_power_pwm_1);
 
 		if(ms58_config.dev_start)
 		{
