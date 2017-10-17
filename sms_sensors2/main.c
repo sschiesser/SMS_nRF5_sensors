@@ -72,12 +72,11 @@
 #define LEDBUTTON_BUTTON2_PIN			BSP_BUTTON_1
 
 #define DEVICE_NAME                     "SMS_sensors"                             /**< Name of device. Will be included in the advertising data. */
-//#define DEVICE_NAME                     "Nordic_Blinky"						/**< Name of device. Will be included in the advertising data. */
 #define BOOTLOADER_RESET_3MIN			(0x15C75ABE)							/**<Command to reset device and keep the bootloader active for 3 minutes */
 #define BOOTLOADER_DFU_START			(0xB1)
 
 #define APP_ADV_INTERVAL                64										/**< The advertising interval (in units of 0.625 ms; this value corresponds to 40 ms). */
-#define APP_ADV_TIMEOUT_IN_SECONDS      10
+#define APP_ADV_TIMEOUT_IN_SECONDS      120
 //#define APP_ADV_TIMEOUT_IN_SECONDS      BLE_GAP_ADV_TIMEOUT_LIMITED_MAX			/**< The advertising time-out (in units of seconds). When set to 0, we will never time out. */
 
 #define APP_TIMER_PRESCALER             0										/**< Value of the RTC1 PRESCALER register. */
@@ -103,14 +102,42 @@
 //#define SMS_CONNECT_BLINK_MS			100
 //#define SMS_GAP_TIMEOUT_BLINK_MS		40
 
-#define SMS_LED_BLINK_FAST				20
-#define SMS_LED_BLINK_SLOW				160
 
 #define SAMPLES_IN_BUFFER 				10
 
-#define SMS_LED_BLINK_FAST_TICKS		20
-#define SMS_LED_BLINK_MEDIUM_TICKS		100
-#define SMS_LED_BLINK_SLOW_TICKS		200
+#define PWM_PERIOD_129HZ				250 // Duty cycle (PWM/off) = 50%
+#define PWM_PERIOD_198HZ				200	// Duty cycle (PWM/off) = 45%
+#define PWM_PERIOD_337HZ				150	// Duty cycle (PWM/off) = 39%
+#define PWM_PERIOD_682HZ				100	// Duty cycle (PWM/off) = 32%
+#define PWM_PERIOD_1057HZ				75	// Duty cycle (PWM/off) = 28%
+#define SMS_PWM_PERIOD					PWM_PERIOD_129HZ
+#define SMS_LED_ON_DUTY					(0.2 * SMS_PWM_PERIOD) // Duty cycle within PWM
+#if(SMS_PWM_PERIOD == PWM_PERIOD_129HZ)
+#define SMS_LED_BLINK_ULTRA_TICKS		6		// 100ms
+#define SMS_LED_BLINK_FAST_TICKS		15		// 250ms
+#define SMS_LED_BLINK_MEDIUM_TICKS		60		// 1s
+#define SMS_LED_BLINK_SLOW_TICKS		240		// 4s
+#elif(SMS_PWM_PERIOD == PWM_PERIOD_198HZ)
+#define SMS_LED_BLINK_ULTRA_TICKS		9		// 100ms
+#define SMS_LED_BLINK_FAST_TICKS		22		// 250ms
+#define SMS_LED_BLINK_MEDIUM_TICKS		87		// 1s
+#define SMS_LED_BLINK_SLOW_TICKS		348		// 4s
+#elif(SMS_PWM_PERIOD == PWM_PERIOD_337HZ)
+#define SMS_LED_BLINK_ULTRA_TICKS		12		// 100ms
+#define SMS_LED_BLINK_FAST_TICKS		32		// 250ms
+#define SMS_LED_BLINK_MEDIUM_TICKS		128		// 1s
+#define SMS_LED_BLINK_SLOW_TICKS		512		// 4s
+#elif(SMS_PWM_PERIOD == PWM_PERIOD_682HZ)
+#define SMS_LED_BLINK_ULTRA_TICKS		21		// 100ms
+#define SMS_LED_BLINK_FAST_TICKS		53		// 250ms
+#define SMS_LED_BLINK_MEDIUM_TICKS		212		// 1s
+#define SMS_LED_BLINK_SLOW_TICKS		848		// 4s
+#elif(SMS_PWM_PERIOD == PWM_PERIOD_1057HZ)
+#define SMS_LED_BLINK_ULTRA_TICKS		30		// 100ms
+#define SMS_LED_BLINK_FAST_TICKS		74		// 250ms
+#define SMS_LED_BLINK_MEDIUM_TICKS		294		// 1s
+#define SMS_LED_BLINK_SLOW_TICKS		1176	// 4s
+#endif
 
 enum sms_states {
 	SMS_OFF,
@@ -130,14 +157,29 @@ enum sms_led_states {
 	LED_ERROR
 };
 
+enum sms_pwm_states {
+	PWM_OFF,
+	PWM_ON
+};
+
 enum sms_states m_device_state;
-enum sms_led_states m_led_state;
+volatile enum sms_led_states m_led_state;
+enum sms_pwm_states m_pwm_state;
+
+typedef struct {
+	bool start;
+	uint8_t bat_level;
+	bool init_ok;
+	bool enabled;
+}batgauge_struct_t;
+
+batgauge_struct_t m_batgauge_state;
 
 static nrf_saadc_value_t     			m_buffer_pool[2][SAMPLES_IN_BUFFER];
 static uint32_t							m_adc_evt_counter;
 uint32_t 								m_batgauge_value;
 bool									batgauge_new_value = false;
-uint8_t									m_led_blink_cnt;
+//uint8_t									m_led_blink_cnt;
 
 static uint8_t 							button_mask = 0;
 static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;/**< Handle of the current connection. */
@@ -199,9 +241,10 @@ extern bno055_interrupt_s bno055_interrupt;
  *
  * ==================================================================== */
 void advertising_start(void);
-void sensors_start(void);
+//void sensors_start(void);
 void sensors_stop(void);
 void button_press_timer_start(void);
+//void batgauge_init(void);
 void batgauge_start(void);
 
 
@@ -268,7 +311,7 @@ static void sms_switch_on(void)
 {
 	NRF_LOG_INFO("Switching-on SMS sensors...\n\r");
 	advertising_start();
-	batgauge_start();
+//	batgauge_start();
 }
 
 
@@ -437,50 +480,46 @@ static void saadc_timer_handler(void * p_context)
 	nrf_drv_saadc_sample();
 }
 
-static void led0_timer_handler(void * p_context)
-{
-	bsp_board_led_invert(ADVERTISING_LED_PIN);
-	switch(m_led_state) {
-		case LED_ADVERTISING:
-			break;
-		case LED_CONNECTED:
-			if(m_led_blink_cnt++ > 4) {
-				bsp_board_led_off(ADVERTISING_LED_PIN);
-				app_timer_stop(led0_timer_id);
-			}
-			break;
-		case LED_GAP_TIMEOUT:
-			if(m_led_blink_cnt++ > 10) {
-				bsp_board_led_off(ADVERTISING_LED_PIN);
-				app_timer_stop(led0_timer_id);
-			}
-			break;
-		default:
-			break;
-	}
-}
-static void led1_timer_handler(void * p_context)
-{
-}
+//static void led0_timer_handler(void * p_context)
+//{
+//	bsp_board_led_invert(ADVERTISING_LED_PIN);
+//	switch(m_led_state) {
+//		case LED_ADVERTISING:
+//			break;
+//		case LED_CONNECTED:
+//			if(m_led_blink_cnt++ > 4) {
+//				bsp_board_led_off(ADVERTISING_LED_PIN);
+//				app_timer_stop(led0_timer_id);
+//			}
+//			break;
+//		case LED_GAP_TIMEOUT:
+//			if(m_led_blink_cnt++ > 10) {
+//				bsp_board_led_off(ADVERTISING_LED_PIN);
+//				app_timer_stop(led0_timer_id);
+//			}
+//			break;
+//		default:
+//			break;
+//	}
+//}
+//static void led1_timer_handler(void * p_context)
+//{
+//}
 
 static void pwm_handler(void * p_context)
 {
-	uint8_t new_duty_cycle;
 	static uint16_t led_0, led_1;
-	static uint8_t blink_0, blink_1;
+	static uint8_t blink_cnt;
 	uint32_t toggle_max = 0;
-	int8_t blink_max = 0;
 	uint32_t err_code;
 	UNUSED_PARAMETER(p_context);
 
 	switch(m_led_state) {
 		case LED_ADVERTISING:
-			toggle_max = SMS_LED_BLINK_SLOW_TICKS;
-			blink_max = -1;
+			toggle_max = SMS_LED_BLINK_MEDIUM_TICKS;
 			break;
 		case LED_CONNECTING:
-			toggle_max = SMS_LED_BLINK_FAST_TICKS;
-			blink_max = 10;
+			toggle_max = SMS_LED_BLINK_ULTRA_TICKS;
 			break;
 		case LED_CONNECTED:
 		case LED_DISCONNECTED:
@@ -495,34 +534,38 @@ static void pwm_handler(void * p_context)
 
 	low_power_pwm_t * pwm_instance = (low_power_pwm_t*)p_context;
 	
+	
 	if(pwm_instance->bit_mask == BSP_LED_0_MASK)
 	{
 		led_0++;
 				
-		if(led_0 > toggle_max)
-		{
-			// blink_max = -1 --> infinite blinking
-			if(blink_max < 0) {
-				new_duty_cycle = pwm_instance->period - pwm_instance->duty_cycle;
-				err_code = low_power_pwm_duty_set(pwm_instance, new_duty_cycle);
-				APP_ERROR_CHECK(err_code);
-			}
-			// blink_max = 0 --> switch off LEDs
-			else if(blink_max == 0) {
-				low_power_pwm_stop(pwm_instance);
-			}
-			// blink_max > 0 --> blink counter
-			else{
-				blink_0++;
-				if(blink_0 > blink_max) {
-					low_power_pwm_stop(pwm_instance);
-					blink_0 = 0;
-					if(m_led_state == LED_CONNECTING) m_led_state = LED_CONNECTED;
+		if(led_0 > toggle_max) {
+			NRF_LOG_INFO("PWM. LED: %d, D: %d\n\r", m_led_state, pwm_instance->duty_cycle);
+			if(m_led_state == LED_ADVERTISING) {
+				if(pwm_instance->duty_cycle > 0) {
+					err_code = low_power_pwm_duty_set(pwm_instance, 0);
 				}
 				else {
-					new_duty_cycle = pwm_instance->period - pwm_instance->duty_cycle;
-					err_code = low_power_pwm_duty_set(pwm_instance, new_duty_cycle);
-					APP_ERROR_CHECK(err_code);
+					err_code = low_power_pwm_duty_set(pwm_instance, SMS_LED_ON_DUTY);
+				}
+				APP_ERROR_CHECK(err_code);
+			}
+			else if(m_led_state == LED_CONNECTING) {
+				if(pwm_instance->duty_cycle > 0) {
+					blink_cnt++;
+					err_code = low_power_pwm_duty_set(pwm_instance, 0);
+				}
+				else {
+					err_code = low_power_pwm_duty_set(pwm_instance, SMS_LED_ON_DUTY);
+				}
+				APP_ERROR_CHECK(err_code);
+				if(blink_cnt > 4) {
+					blink_cnt = 0;
+					m_pwm_state = PWM_OFF;
+					m_led_state = LED_CONNECTED;
+					ms58_config.dev_start = true;
+					bno055_config.dev_start = true;
+					m_batgauge_state.start = true;
 				}
 			}
 			led_0 = 0;
@@ -530,15 +573,7 @@ static void pwm_handler(void * p_context)
 	}
 	else if(pwm_instance->bit_mask == BSP_LED_1_MASK)
 	{
-		led_1++;
-		
-		if(led_1 > toggle_max)
-		{
-			new_duty_cycle = pwm_instance->period - pwm_instance->duty_cycle;
-			err_code = low_power_pwm_duty_set(pwm_instance, new_duty_cycle);
-			led_1 = 0;
-			APP_ERROR_CHECK(err_code);
-		}
+
 	}
 }
 
@@ -611,20 +646,14 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 			NRF_LOG_DEBUG("Connected\r\n");
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
 			m_led_state = LED_CONNECTING;
-//			m_led_blink_cnt = 0;
 			m_device_state = SMS_RUNNING;
-			
-			ms58_config.dev_start = true;
-			bno055_config.dev_start = true;
-
+					
             break; // BLE_GAP_EVT_CONNECTED
 
         case BLE_GAP_EVT_DISCONNECTED:
 			NRF_LOG_DEBUG("Disconnected\r\n");
-			m_led_state = LED_DISCONNECTED;
+//			m_led_state = LED_DISCONNECTED;
 			sensors_stop();
-//			app_timer_stop(led0_timer_id);
-//			bsp_board_led_off(ADVERTISING_LED_PIN);
 			if(m_device_state == SMS_RUNNING) {
 				advertising_start();
 			}
@@ -746,14 +775,15 @@ static void leds_init(void)
 	uint32_t err_code;
 	low_power_pwm_config_t low_power_pwm_config;
 	low_power_pwm_config.active_high = false;
-	low_power_pwm_config.period = 100;
+	low_power_pwm_config.period = SMS_PWM_PERIOD;
 	low_power_pwm_config.bit_mask = BSP_LED_0_MASK;
 	low_power_pwm_config.p_timer_id = &led0_timer_id;
 	low_power_pwm_config.p_port = NRF_GPIO;
 	
+	m_pwm_state = PWM_OFF;
 	err_code = low_power_pwm_init((&low_power_pwm_0), &low_power_pwm_config, pwm_handler);
 	APP_ERROR_CHECK(err_code);
-	err_code = low_power_pwm_duty_set(&low_power_pwm_0, 0);
+	err_code = low_power_pwm_duty_set(&low_power_pwm_0, SMS_LED_ON_DUTY);
 	APP_ERROR_CHECK(err_code);
 	
 
@@ -796,6 +826,10 @@ static void batgauge_init(void)
 	
 	err_code = nrf_drv_saadc_buffer_convert(m_buffer_pool[1], SAMPLES_IN_BUFFER);
 	APP_ERROR_CHECK(err_code);
+	
+	m_batgauge_state.init_ok = true;
+	m_batgauge_state.enabled = false;
+	m_batgauge_state.start = false;
 }
 
 
@@ -1137,18 +1171,16 @@ void advertising_start(void)
 
 	NRF_LOG_INFO("Starting advertising for %d seconds\n\r", APP_ADV_TIMEOUT_IN_SECONDS);
 
-//    bsp_board_led_on(ADVERTISING_LED_PIN);
-//	app_timer_start(led0_timer_id,
-//		APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_ADVERTISE_BLINK_MS, UNIT_1_00_MS), 0),
-//		NULL);
+	m_pwm_state = PWM_ON;
+	m_led_state = LED_ADVERTISING;
+	m_device_state = SMS_ADVERTISING;
+//	err_code = low_power_pwm_duty_set(&low_power_pwm_0, SMS_LED_ON_DUTY);
+//	APP_ERROR_CHECK(err_code);
 	err_code = low_power_pwm_start((&low_power_pwm_0), low_power_pwm_0.bit_mask);
 	APP_ERROR_CHECK(err_code);
 	err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
 	APP_ERROR_CHECK(err_code);
 	
-	m_led_state = LED_ADVERTISING;
-	m_led_blink_cnt = 0;
-	m_device_state = SMS_ADVERTISING;
 	
 //    // Start advertising
 //    memset(&adv_params, 0, sizeof(adv_params));
@@ -1174,6 +1206,9 @@ void batgauge_start(void)
 	app_timer_start(saadc_timer_id,
 		APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_BATGAUGE_SAMPLE_MS, UNIT_1_00_MS), 0),
 		NULL);
+	
+	m_batgauge_state.enabled = true;
+	m_batgauge_state.start = false;
 
 }
 
@@ -1218,31 +1253,69 @@ static void power_manage(void)
 }
 
 
-void sensors_start(void)
-{
-	NRF_LOG_INFO("Starting sensors...\n\r");
-	NRF_LOG_INFO("...switch on supply\n\r");
-	nrf_gpio_pin_write(SMS_PRESSURE_SUPPLY_PIN, 1);
-	nrf_gpio_pin_write(SMS_IMU_SUPPLY_PIN, 1);
-	
-	NRF_LOG_INFO("...enable & initialize: ");
-	pressure_enable();
-	NRF_LOG_INFO("MS58? %d,", ms58_config.dev_en);
-	imu_enable();
-	NRF_LOG_INFO("BNO055? %d\r\n", bno055_config.dev_en);
-	
-//	NRF_LOG_INFO("...timers\n\r");
-//	app_timer_start(pressure_poll_int_id,
-//					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_PRESSURE_POLL_MS, UNIT_1_00_MS), 0),
-//					NULL);
-//	app_timer_start(imu_poll_int_id,
-//					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_IMU_POLL_MS, UNIT_1_00_MS), 0),
-//					NULL);
-////	nrf_drv_timer_enable(&TIMER_DELTA_US);
+//void sensors_start(void)
+//{
+//	if(ms58_config.dev_start) {
+//		NRF_LOG_INFO("Starting MS58...\n\r");
+//		NRF_LOG_INFO("...switch on supply\n\r");
+//		nrf_gpio_pin_write(SMS_PRESSURE_SUPPLY_PIN, SMS_PRESSURE_SW_ON);
+
+//		NRF_LOG_INFO("...enable & initialize\n\r");
+//		pressure_enable();
+//		NRF_LOG_INFO("MS58? %d\r\n", ms58_config.dev_en);
+
+//		NRF_LOG_INFO("...timer\n\r");
+//		app_timer_start(pressure_poll_int_id,
+//						APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_PRESSURE_POLL_MS, UNIT_1_00_MS), 0),
+//						NULL);
+
+//		ms58_interrupt.enabled = ms58_config.dev_en;
+//		ms58_config.dev_start = false;
+//	}
+
+//	if(bno055_config.dev_start)
+//	{
+//		NRF_LOG_INFO("Starting BNO055...\n\r");
+//		NRF_LOG_INFO("...switch on supply\n\r");
+//		nrf_gpio_pin_write(SMS_IMU_SUPPLY_PIN, SMS_IMU_SW_ON);
+
+//		NRF_LOG_INFO("...enable & initialize\n\r");
+//		imu_enable();
+//		NRF_LOG_INFO("BNO055? %d\r\n", bno055_config.dev_en);
+
+//		NRF_LOG_INFO("...timer\n\r");
+//		app_timer_start(imu_poll_int_id,
+//						APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_IMU_POLL_MS, UNIT_1_00_MS), 0),
+//						NULL);
+
+//		bno055_interrupt.enabled = bno055_config.dev_en;
+//		bno055_config.dev_start = false;
+//	}
+////	NRF_LOG_INFO("Starting sensors...\n\r");
+////	NRF_LOG_INFO("...switch on supply\n\r");
+////	nrf_gpio_pin_write(SMS_PRESSURE_SUPPLY_PIN, 1);
+////	nrf_gpio_pin_write(SMS_IMU_SUPPLY_PIN, 1);
+////	
+////	NRF_LOG_INFO("...enable & initialize: ");
+////	pressure_enable();
+////	NRF_LOG_INFO("MS58? %d,", ms58_config.dev_en);
+////	imu_enable();
+////	NRF_LOG_INFO("BNO055? %d\r\n", bno055_config.dev_en);
+//	batgauge_start();
+//	NRF_LOG_INFO("...batgauge started\n\r");
 //	
-//	ms58_interrupt.enabled = true;
-//	bno055_interrupt.enabled = true;
-}
+////	NRF_LOG_INFO("...timers\n\r");
+////	app_timer_start(pressure_poll_int_id,
+////					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_PRESSURE_POLL_MS, UNIT_1_00_MS), 0),
+////					NULL);
+////	app_timer_start(imu_poll_int_id,
+////					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_IMU_POLL_MS, UNIT_1_00_MS), 0),
+////					NULL);
+//////	nrf_drv_timer_enable(&TIMER_DELTA_US);
+////	
+////	ms58_interrupt.enabled = true;
+////	bno055_interrupt.enabled = true;
+//}
 
 void sensors_stop(void)
 {
@@ -1254,9 +1327,13 @@ void sensors_stop(void)
 	NRF_LOG_INFO("...polling timers\n\r");
 	app_timer_stop(pressure_poll_int_id);
 	app_timer_stop(imu_poll_int_id);
+
+	NRF_LOG_INFO("...batgauge\n\r");
+	app_timer_stop(saadc_timer_id);
 	
 	ms58_interrupt.enabled = false;
 	bno055_interrupt.enabled = false;
+	m_batgauge_state.enabled = false;
 }
 
 void button_press_timer_start(void)
@@ -1283,7 +1360,7 @@ int main(void)
 	uint8_t fw_msb, fw_lsb;
 	fw_msb = ((SMS_VERSION_ID & 0xFF) > 8);
 	fw_lsb = (SMS_VERSION_ID & 0x0F);
-//	NRF_LOG_INFO("===============================\n\r");
+	NRF_LOG_INFO("===============================\n\r");
 //	NRF_LOG_INFO("SMS sensors firmware v%d.%d, r%03d\n\r", fw_msb, fw_lsb, SMS_RELEASE_ID);
 //	NRF_LOG_INFO("===============================\n\n\r");
 
@@ -1315,7 +1392,7 @@ int main(void)
 	advertising_start();
 	
 	// Enable battery gauge measurement
-	batgauge_start();
+//	batgauge_start();
 
     // Enter main loop.
     for (;;)
@@ -1325,6 +1402,8 @@ int main(void)
             power_manage();
         }
 		
+		if(m_pwm_state == PWM_OFF) low_power_pwm_stop(&low_power_pwm_0);
+
 		if(ms58_config.dev_start)
 		{
 //			NRF_LOG_INFO("Starting MS58...\n\r");
@@ -1363,6 +1442,12 @@ int main(void)
 			bno055_config.dev_start = false;
 		}
 		
+		if(m_batgauge_state.start)
+		{
+			NRF_LOG_INFO("Starting batgauge\n\r");
+			batgauge_start();
+		}
+
 		if((ms58_interrupt.enabled) && (ms58_interrupt.new_value))
 		{
 			nrf_gpio_pin_write(DBG1_PIN, 1);
@@ -1442,7 +1527,7 @@ int main(void)
 			
 			nrf_gpio_pin_write(DBG2_PIN, 0);
 		}
-    }
+	}
 }
 
 
