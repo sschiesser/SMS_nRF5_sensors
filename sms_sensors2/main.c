@@ -112,6 +112,7 @@
 #define PWM_PERIOD_1057HZ				75	// Duty cycle (PWM/off) = 28%
 #define SMS_PWM_PERIOD					PWM_PERIOD_129HZ
 #define SMS_LED_ON_DUTY					(0.2 * SMS_PWM_PERIOD) // Duty cycle within PWM
+#define SMS_LED_RUNNING_DUTY			2		// in %
 #if(SMS_PWM_PERIOD == PWM_PERIOD_129HZ)
 #define SMS_LED_BLINK_ULTRA_TICKS		6		// 100ms
 #define SMS_LED_BLINK_FAST_TICKS		15		// 250ms
@@ -155,6 +156,7 @@ enum led_states {
 	LED_POLLING,
 	LED_SENDING,
 	LED_CALIBRATING,
+	LED_SWITCHING_OFF,
 	LED_ERROR
 };
 
@@ -283,6 +285,20 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
     app_error_handler(DEAD_BEEF, line_num, p_file_name);
 }
 
+static void leds_blink_off(void)
+{
+	bsp_board_leds_off();
+	for(int i = 0; i < 4; i++) {
+		bsp_board_led_on(ADVERTISING_LED_PIN);
+		nrf_delay_ms(100);
+		bsp_board_led_off(ADVERTISING_LED_PIN);
+		bsp_board_led_on(SENDING_LED_PIN);
+		nrf_delay_ms(100);
+		bsp_board_led_off(SENDING_LED_PIN);
+	}
+	bsp_board_leds_off();
+}
+
 static void sms_switch_off(bool restart)
 {
 	uint32_t err_code;
@@ -309,8 +325,11 @@ static void sms_switch_off(bool restart)
 			m_app_state.running = SMS_OFF;
 		}
 	}
+	low_power_pwm_stop(&low_power_pwm_0);
+	low_power_pwm_stop(&low_power_pwm_1);
 	
-	bsp_board_leds_off();
+	leds_blink_off();
+	
 	app_timer_stop_all();
 	
 	m_conn_handle = BLE_CONN_HANDLE_INVALID;
@@ -492,13 +511,15 @@ static void saadc_timer_handler(void * p_context)
 static void pwm_handler(void * p_context)
 {
 	static uint16_t led_0, led_1;
-	static uint8_t blink_cnt;
+	static uint8_t blink_cnt, tc;
 	uint32_t toggle_max;
 	uint32_t err_code;
+	uint8_t tc_max = 100/SMS_LED_RUNNING_DUTY;
 	UNUSED_PARAMETER(p_context);
 
 	low_power_pwm_t * pwm_instance = (low_power_pwm_t*)p_context;
 	
+	// Commands for LED_0
 	if(pwm_instance->bit_mask == BSP_LED_0_MASK)
 	{
 		led_0++;
@@ -548,13 +569,14 @@ static void pwm_handler(void * p_context)
 			led_0 = 0;
 		}
 	}
+	// Commands for LED_1
 	else if(pwm_instance->bit_mask == BSP_LED_1_MASK)
 	{
 		led_1++;
 		
 		switch(m_app_state.led[1]) {
 			case LED_RUNNING:
-				toggle_max = SMS_LED_BLINK_SLOW_TICKS;
+				toggle_max = SMS_LED_BLINK_FAST_TICKS;
 				break;
 			default:
 				toggle_max = 0;
@@ -565,10 +587,17 @@ static void pwm_handler(void * p_context)
 //			NRF_LOG_INFO("PWM. LED: %d, D: %d\n\r", m_app_state.led[1], pwm_instance->duty_cycle);
 			if(m_app_state.led[1] == LED_RUNNING) {
 				if(pwm_instance->duty_cycle > 0) {
+					tc = 0;
 					err_code = low_power_pwm_duty_set(pwm_instance, 0);
 				}
 				else {
-					err_code = low_power_pwm_duty_set(pwm_instance, SMS_LED_ON_DUTY);
+					tc++;
+					if(tc > tc_max) {
+						err_code = low_power_pwm_duty_set(pwm_instance, SMS_LED_ON_DUTY);
+					}
+					else {
+						err_code = low_power_pwm_duty_set(pwm_instance, 0);
+					}
 				}
 				APP_ERROR_CHECK(err_code);
 			}
