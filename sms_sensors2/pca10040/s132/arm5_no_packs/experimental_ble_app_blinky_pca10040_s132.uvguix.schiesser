@@ -3516,11 +3516,11 @@
       <ActiveTab>0</ActiveTab>
       <Doc>
         <Name>..\..\..\main.c</Name>
-        <ColumnNumber>25</ColumnNumber>
-        <TopLine>686</TopLine>
-        <CurrentLine>771</CurrentLine>
+        <ColumnNumber>26</ColumnNumber>
+        <TopLine>612</TopLine>
+        <CurrentLine>661</CurrentLine>
         <Folding>1</Folding>
-        <ContractedFolders>279,281,346,364,388,499,563,680,869,916,945,963,979,1052,1078,1113,1142,1168,1183,1216,1296</ContractedFolders>
+        <ContractedFolders>346,364,388,499,563,706,942,971,989,1005,1078,1104,1139,1168,1194,1209,1242,1322</ContractedFolders>
         <PaneID>0</PaneID>
       </Doc>
       <Doc>
