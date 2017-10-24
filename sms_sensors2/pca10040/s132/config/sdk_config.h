@@ -92,14 +92,14 @@
 // <o> DBG1_PIN - Pin number <0-31>
 
 #ifndef DBG1_PIN
-#define DBG1_PIN 19
+#define DBG1_PIN 23
 #endif
 
 //==========================================================
 // <o> DBG2_PIN - Pin number <0-31>
 
 #ifndef DBG2_PIN
-#define DBG2_PIN 20
+#define DBG2_PIN 24
 #endif
 
 // </h> 

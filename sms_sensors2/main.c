@@ -105,7 +105,7 @@
 #define PWM_PERIOD_682HZ				100	// Duty cycle (PWM/off) = 32%
 #define PWM_PERIOD_1057HZ				75	// Duty cycle (PWM/off) = 28%
 #define SMS_PWM_PERIOD					PWM_PERIOD_129HZ
-#define SMS_LED_ON_DUTY					(0.2 * SMS_PWM_PERIOD) // Duty cycle within PWM
+#define SMS_LED_ON_DUTY					(0.2 * SMS_PWM_PERIOD) // Duty cycle within PWM (affects LED brightness)
 #define SMS_LED_OFF_DUTY				SMS_PWM_PERIOD - SMS_LED_ON_DUTY
 #define SMS_LED_RUNNING_DUTY			2		// in %
 #if(SMS_PWM_PERIOD == PWM_PERIOD_129HZ)
@@ -147,6 +147,7 @@
 enum sms_running_states {
 	SMS_OFF,
 	SMS_ADVERTISING,
+	SMS_ADV_TIMEOUT,
 	SMS_RUNNING
 };
 enum led_states {
@@ -279,14 +280,15 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
 static void leds_blink_off(void)
 {
 	bsp_board_leds_off();
-	for(int i = 0; i < 4; i++) {
-		bsp_board_led_on(SMS_CONN_LED_PIN);
-		nrf_delay_ms(100);
-		bsp_board_led_off(SMS_CONN_LED_PIN);
-		bsp_board_led_on(SMS_DATA_LED_PIN);
-		nrf_delay_ms(100);
-		bsp_board_led_off(SMS_DATA_LED_PIN);
-	}
+
+	bsp_board_led_on(SMS_DATA_LED_PIN);
+	nrf_delay_ms(150);
+	bsp_board_led_on(SMS_CONN_LED_PIN);
+	nrf_delay_ms(500);
+	bsp_board_led_off(SMS_CONN_LED_PIN);
+	nrf_delay_ms(150);
+	bsp_board_led_off(SMS_DATA_LED_PIN);
+	
 	bsp_board_leds_off();
 }
 
@@ -317,18 +319,21 @@ static void sms_switch_off(bool restart)
 	
 	if(m_app_state.running == SMS_ADVERTISING) {
 		err_code = sd_ble_gap_adv_stop();
-		NRF_LOG_INFO("Adv stop err_code: 0x%04x\n\r", err_code);
+		NRF_LOG_DEBUG("Adv stop err_code: 0x%04x\n\r", err_code);
 		if(err_code != 0x0008) {
 			APP_ERROR_CHECK(err_code);
 		}
 		m_app_state.running = SMS_OFF;
 	}
-	if(m_app_state.running == SMS_RUNNING) {
+	else if(m_app_state.running == SMS_RUNNING) {
 		err_code = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
-		NRF_LOG_INFO("Disconnect err_code: 0x%04x\n\r", err_code);
+		NRF_LOG_DEBUG("Disconnect err_code: 0x%04x\n\r", err_code);
 		if(!restart) {
 			m_app_state.running = SMS_OFF;
 		}
+	}
+	else if(m_app_state.running == SMS_ADV_TIMEOUT) {
+		m_app_state.running = SMS_OFF;
 	}
 	low_power_pwm_stop(&low_power_pwm_conn);
 	low_power_pwm_stop(&low_power_pwm_data);
@@ -566,7 +571,7 @@ static void saadc_timer_handler(void * p_context)
 	nrf_drv_saadc_sample();
 }
 
-/**@brief Function for handling a PWM event.
+/**@brief Function for handling the PWM event for connection LED.
  *
  * @details	Depending on the PWM instance and the current LED state, toggle the
  *			PWM or switch it off.
@@ -644,6 +649,13 @@ static void pwm_conn_handler(void * p_context)
 	}
 }
 
+/**@brief Function for handling the PWM event for data LED.
+ *
+ * @details	Depending on the PWM instance and the current LED state, toggle the
+ *			PWM or switch it off.
+ *
+ * @param[in] p_context	Select the PWM instance which has called the handler.
+ */
 static void pwm_data_handler(void * p_context)
 {
 	static uint16_t change_cnt;
@@ -658,7 +670,7 @@ static void pwm_data_handler(void * p_context)
 	switch(m_app_state.led[1]) {
 		case LED_RUNNING:
 			max_changes = SMS_LED_BLINK_FAST_TICKS;
-			max_duty = 100;
+			max_duty = 100/SMS_LED_RUNNING_DUTY;
 			break;
 		default:
 			break;
@@ -796,6 +808,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 		case BLE_GAP_EVT_TIMEOUT:
 			NRF_LOG_DEBUG("GAP Event Timeout.\r\n");
 			m_app_state.led[0] = LED_GAP_TIMEOUT;
+			m_app_state.running = SMS_ADV_TIMEOUT;
 			sms_switch_off(false);
 			break;
 
@@ -1387,7 +1400,8 @@ int main(void)
 		if(ms58_config.dev_start)
 		{
 			nrf_gpio_pin_write(SMS_PRESSURE_SUPPLY_PIN, SMS_PRESSURE_SW_ON);
-			pressure_enable();
+//			pressure_enable();
+			ms58_config.dev_en = true;
 			app_timer_start(pressure_poll_int_id,
 							APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_PRESSURE_POLL_MS, UNIT_1_00_MS), 0),
 							NULL);
@@ -1399,7 +1413,8 @@ int main(void)
 		if(bno055_config.dev_start)
 		{
 			nrf_gpio_pin_write(SMS_IMU_SUPPLY_PIN, SMS_IMU_SW_ON);
-			imu_enable();
+//			imu_enable();
+			bno055_config.dev_en = true;
 			app_timer_start(imu_poll_int_id,
 							APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_IMU_POLL_MS, UNIT_1_00_MS), 0),
 							NULL);
@@ -1455,20 +1470,18 @@ int main(void)
 		// RTS (ready-to-send) for ms58
 		if((ms58_interrupt.enabled) && (ms58_interrupt.rts))
 		{
-			nrf_gpio_pin_write(DBG1_PIN, 1);
+//			nrf_gpio_pin_write(DBG1_PIN, 1);
 			ms58_interrupt.rts = false;
 			int32_t * tosend;
 			tosend = &ms58_output.pressure;
-		    bsp_board_led_on(SMS_DATA_LED_PIN);
 			err_code = ble_smss_on_press_value(&m_smss_service, tosend);
-			bsp_board_led_off(SMS_DATA_LED_PIN);
 			if(	(err_code != 0x3401) &&
 				(err_code != 0x0008) &&
 				(err_code != 0) )
 			{
 				APP_ERROR_CHECK(err_code);
 			}
-			nrf_gpio_pin_write(DBG1_PIN, 0);
+//			nrf_gpio_pin_write(DBG1_PIN, 0);
 		}
 		
 		// RTS (ready-to-send) for BNO055
@@ -1478,9 +1491,7 @@ int main(void)
 			bno055_interrupt.rts = false;
 			uint32_t * tosend;
 			tosend = (uint32_t*)&bno055_output.quat[0].b;
-		    bsp_board_led_on(SMS_DATA_LED_PIN);
 			err_code = ble_smss_on_imu_value(&m_smss_service, tosend);
-		    bsp_board_led_off(SMS_DATA_LED_PIN);
 			if(	(err_code != 0x3401) &&
 				(err_code != 0x0008) &&
 				(err_code != 0) )
