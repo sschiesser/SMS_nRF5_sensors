@@ -63,7 +63,7 @@
 	#define NRF_BLE_MAX_MTU_SIZE            GATT_MTU_SIZE_DEFAULT					/**< MTU size used in the softdevice enabling and to reply to a BLE_GATTS_EVT_EXCHANGE_MTU_REQUEST event. */
 #endif
 #define SMS_ADV_INTERVAL                64										/**< The advertising interval (in units of 0.625 ms; this value corresponds to 40 ms). */
-#define SMS_ADV_TIMEOUT_IN_SECONDS      120
+#define SMS_ADV_TIMEOUT_IN_SECONDS      10
 #define SMS_FEATURE_NOT_SUPPORTED       BLE_GATT_STATUS_ATTERR_APP_BEGIN + 2	/**< Reply when unsupported features are requested. */
 #define MIN_CONN_INTERVAL               MSEC_TO_UNITS(15, UNIT_1_25_MS)			/**< Minimum acceptable connection interval (15 ms). */
 #define MAX_CONN_INTERVAL               MSEC_TO_UNITS(20, UNIT_1_25_MS)			/**< Maximum acceptable connection interval (20 ms). */
@@ -106,6 +106,7 @@
 #define PWM_PERIOD_1057HZ				75	// Duty cycle (PWM/off) = 28%
 #define SMS_PWM_PERIOD					PWM_PERIOD_129HZ
 #define SMS_LED_ON_DUTY					(0.2 * SMS_PWM_PERIOD) // Duty cycle within PWM
+#define SMS_LED_OFF_DUTY				SMS_PWM_PERIOD - SMS_LED_ON_DUTY
 #define SMS_LED_RUNNING_DUTY			2		// in %
 #if(SMS_PWM_PERIOD == PWM_PERIOD_129HZ)
 #define SMS_LED_BLINK_ULTRA_TICKS		6		// 100ms
@@ -235,6 +236,7 @@ extern bno055_interrupt_s bno055_interrupt;
 void advertising_start(void);
 void sensors_stop(void);
 
+//#define DEBUG
 
 /**@brief Application error handler overwitten.
  *
@@ -244,7 +246,7 @@ void sensors_stop(void);
  */
 void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info)
 {
-NRF_LOG_DEBUG("ERROR! ID: %d, PC: %d, INFO: %d\n\r", id, pc, info);
+//NRF_LOG_INFO("ERROR! ID: %d, PC: %d, INFO: %d\n\r", id, pc, info);
 #ifndef DEBUG
 	NVIC_SystemReset();
 #else
@@ -300,7 +302,7 @@ static void sms_switch_off(bool restart)
 {
 	uint32_t err_code;
 	
-	NRF_LOG_DEBUG("Switching-off SMS sensors...\n\r");
+	NRF_LOG_INFO("Switching-off SMS sensors...\n\r");
 	
 	bno055_interrupt.new_value = false;
 	bno055_interrupt.rts = false;
@@ -314,9 +316,11 @@ static void sms_switch_off(bool restart)
 	m_app_state.batgauge.enabled = false;
 	
 	if(m_app_state.running == SMS_ADVERTISING) {
-		NRF_LOG_DEBUG("Adv stop err_code: 0x%04x\n\r", err_code);
 		err_code = sd_ble_gap_adv_stop();
-		APP_ERROR_CHECK(err_code);
+		NRF_LOG_INFO("Adv stop err_code: 0x%04x\n\r", err_code);
+		if(err_code != 0x0008) {
+			APP_ERROR_CHECK(err_code);
+		}
 		m_app_state.running = SMS_OFF;
 	}
 	if(m_app_state.running == SMS_RUNNING) {
@@ -730,11 +734,11 @@ static void on_conn_params_evt(ble_conn_params_evt_t * p_evt)
 static void on_ble_evt(ble_evt_t * p_ble_evt)
 {
     uint32_t err_code;
-
+	NRF_LOG_DEBUG("On BLE event: 0x%04x\n\r", p_ble_evt->header.evt_id);
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_CONNECTED:
-			NRF_LOG_INFO("Connected\r\n");
+//			NRF_LOG_INFO("Connected\r\n");
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
 			m_app_state.led[0] = LED_CONNECTING;
 			m_app_state.pwm[1] = PWM_ON;
@@ -745,7 +749,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
             break; // BLE_GAP_EVT_CONNECTED
 
         case BLE_GAP_EVT_DISCONNECTED:
-			NRF_LOG_INFO("Disconnected\r\n");
+//			NRF_LOG_INFO("Disconnected\r\n");
 			m_app_state.led[1] = LED_DISCONNECTED;
 			sensors_stop();
 			if(m_app_state.running == SMS_RUNNING) {
@@ -777,7 +781,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 
         case BLE_GATTC_EVT_TIMEOUT:
             // Disconnect on GATT Client timeout event.
-			NRF_LOG_DEBUG("GATT Client Timeout.\r\n");
+			NRF_LOG_INFO("GATT Client Timeout.\r\n");
             err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gattc_evt.conn_handle,
                                              BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
             APP_ERROR_CHECK(err_code);
@@ -898,7 +902,7 @@ static void leds_init(void)
  */
 static void supplies_init(void)
 {
-	NRF_LOG_INFO("Preparing supply ports as outputs\r\n");
+//	NRF_LOG_INFO("Preparing supply ports as outputs\r\n");
 	nrf_gpio_cfg_output(SMS_PRESSURE_SUPPLY_PIN);
 	nrf_gpio_pin_write(SMS_PRESSURE_SUPPLY_PIN, SMS_PRESSURE_SW_OFF);
 	nrf_gpio_cfg_output(SMS_IMU_SUPPLY_PIN);
@@ -1025,6 +1029,18 @@ static void timers_init(void)
 								APP_TIMER_MODE_REPEATED,
 								saadc_timer_handler);
 	APP_ERROR_CHECK(err_code);
+	
+//	// - LED0 timer
+//	err_code = app_timer_create(&led0_timer_id,
+//								APP_TIMER_MODE_REPEATED,
+//								led0_timer_handler);
+//	APP_ERROR_CHECK(err_code);
+//	
+//	// - LED1 timer
+//	err_code = app_timer_create(&led1_timer_id,
+//								APP_TIMER_MODE_REPEATED,
+//								led1_timer_handler);
+//	APP_ERROR_CHECK(err_code);
 }
 
 /**@brief Function for starting the bootloader for 3 minutes
@@ -1228,9 +1244,10 @@ void advertising_start(void)
 
 	m_app_state.pwm[0] = PWM_ON;
 	m_app_state.led[0] = LED_ADVERTISING;
-	m_app_state.running = SMS_ADVERTISING;
 	err_code = low_power_pwm_start((&low_power_pwm_conn), low_power_pwm_conn.bit_mask);
 	APP_ERROR_CHECK(err_code);
+	
+	m_app_state.running = SMS_ADVERTISING;
 	err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
 	APP_ERROR_CHECK(err_code);
 }
@@ -1378,19 +1395,19 @@ int main(void)
 		// New value flag of the pressure sensor
 		if((ms58_interrupt.enabled) && (ms58_interrupt.new_value))
 		{
-			nrf_gpio_pin_write(DBG1_PIN, 1);
+//			nrf_gpio_pin_write(DBG1_PIN, 1);
 			ms58_interrupt.new_value = false;
 			pressure_poll_data();
-			nrf_gpio_pin_write(DBG1_PIN, 0);
+//			nrf_gpio_pin_write(DBG1_PIN, 0);
 		}
 		
 		// New value flag of the IMU
 		if((bno055_interrupt.enabled) && (bno055_interrupt.new_value))
 		{
-			nrf_gpio_pin_write(DBG2_PIN, 1);
+//			nrf_gpio_pin_write(DBG2_PIN, 1);
 			bno055_interrupt.new_value = false;
 			imu_poll_data(SMS_IMU_DATAMSK_QUAT);
-			nrf_gpio_pin_write(DBG2_PIN, 0);
+//			nrf_gpio_pin_write(DBG2_PIN, 0);
 		}
 		
 		// New value flag of the battery gauge... sends notification automatically
@@ -1431,7 +1448,7 @@ int main(void)
 		// RTS (ready-to-send) for BNO055
 		if((bno055_interrupt.enabled) && (bno055_interrupt.rts))
 		{
-			nrf_gpio_pin_write(DBG2_PIN, 1);
+//			nrf_gpio_pin_write(DBG2_PIN, 1);
 			bno055_interrupt.rts = false;
 			uint32_t * tosend;
 			tosend = (uint32_t*)&bno055_output.quat[0].b;
@@ -1444,7 +1461,7 @@ int main(void)
 			{
 				APP_ERROR_CHECK(err_code);
 			}
-			nrf_gpio_pin_write(DBG2_PIN, 0);
+//			nrf_gpio_pin_write(DBG2_PIN, 0);
 		}
 	}
 }
