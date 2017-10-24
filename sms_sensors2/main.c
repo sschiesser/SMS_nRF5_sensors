@@ -97,7 +97,7 @@
 #define APP_TIMER_OP_QUEUE_SIZE         8										/**< Size of timer operation queues. */
 // Batgauge/SAADC
 #define SMS_BATGAUGE_SAMPLE_RATE_MS		1000									/* Time between each ADC sample */
-#define ADC_SAMPLES_IN_BUFFER 			10										/* Number of ADC samples before a batgauge averaging is called */
+#define ADC_SAMPLES_IN_BUFFER 			2										/* Number of ADC samples before a batgauge averaging is called */
 // PWM
 #define PWM_PERIOD_129HZ				250 // Duty cycle (PWM/off) = 50%
 #define PWM_PERIOD_198HZ				200	// Duty cycle (PWM/off) = 45%
