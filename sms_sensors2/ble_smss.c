@@ -45,7 +45,7 @@ static void on_disconnect(ble_smss_t * p_smss, ble_evt_t * p_ble_evt)
 static void on_write(ble_smss_t * p_smss, ble_evt_t * p_ble_evt)
 {
     ble_gatts_evt_write_t * p_evt_write = &p_ble_evt->evt.gatts_evt.params.write;
-	
+	NRF_LOG_INFO("ON WRITE\n\r");
 	if((p_evt_write->handle == p_smss->app_update_handles.value_handle) &&
 		(p_evt_write->len == 4) &&
 		(p_smss->app_update_function != NULL))

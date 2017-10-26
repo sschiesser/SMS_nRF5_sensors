@@ -38,6 +38,9 @@
 void imu_poll_data(uint8_t data_msk);
 void imu_enable(void);
 
+void bno055_calibrate_accel_gyro(float *dest1, float *dest2);
+void bno055_calibrate_mag(float *dest1);
+
 void twi_event_handler(nrf_drv_twi_evt_t const * p_event, void * p_context);
 void twi_init(void);
 

@@ -63,7 +63,7 @@
 	#define NRF_BLE_MAX_MTU_SIZE            GATT_MTU_SIZE_DEFAULT					/**< MTU size used in the softdevice enabling and to reply to a BLE_GATTS_EVT_EXCHANGE_MTU_REQUEST event. */
 #endif
 #define SMS_ADV_INTERVAL                64										/**< The advertising interval (in units of 0.625 ms; this value corresponds to 40 ms). */
-#define SMS_ADV_TIMEOUT_IN_SECONDS      10
+#define SMS_ADV_TIMEOUT_IN_SECONDS      30
 #define SMS_FEATURE_NOT_SUPPORTED       BLE_GATT_STATUS_ATTERR_APP_BEGIN + 2	/**< Reply when unsupported features are requested. */
 #define MIN_CONN_INTERVAL               MSEC_TO_UNITS(15, UNIT_1_25_MS)			/**< Minimum acceptable connection interval (15 ms). */
 #define MAX_CONN_INTERVAL               MSEC_TO_UNITS(20, UNIT_1_25_MS)			/**< Maximum acceptable connection interval (20 ms). */
@@ -157,6 +157,8 @@ enum led_states {
 	LED_DISCONNECTED,
 	LED_GAP_TIMEOUT,
 	LED_RUNNING,
+	LED_CALIB_ACCEL,
+	LED_CALIB_COMP,
 	LED_SWITCHING_OFF,
 	LED_ERROR
 };
@@ -672,6 +674,9 @@ static void pwm_data_handler(void * p_context)
 			max_changes = SMS_LED_BLINK_FAST_TICKS;
 			max_duty = 100/SMS_LED_RUNNING_DUTY;
 			break;
+		case LED_CALIB_ACCEL:
+			max_changes = SMS_LED_BLINK_MEDIUM_TICKS;
+			break;
 		default:
 			break;
 	}
@@ -693,6 +698,16 @@ static void pwm_data_handler(void * p_context)
 					else {
 						err_code = low_power_pwm_duty_set(pwm_instance, 0);
 					}
+				}
+				APP_ERROR_CHECK(err_code);
+				break;
+				
+			case LED_CALIB_ACCEL:
+				if(pwm_instance->duty_cycle > 0) {
+					err_code = low_power_pwm_duty_set(pwm_instance, 0);
+				}
+				else {
+					err_code = low_power_pwm_duty_set(pwm_instance, SMS_LED_ON_DUTY);
 				}
 				APP_ERROR_CHECK(err_code);
 				break;
@@ -1210,10 +1225,16 @@ static void app_update_function(ble_smss_t * p_smss, uint8_t *data)
 						(data[1] << 8) +
 						(data[2] << 16) +
 						(data[3] << 24));
-	NRF_LOG_DEBUG("Received app update command: %#x\n\r", command);
-	if(command == 0x00) {
+	NRF_LOG_INFO("Received app update command: %#x\n\r", command);
+	if(command == 0x1c57b007) {
 		NRF_LOG_DEBUG("Restarting device with 3 min bootloader...\n\r");
 		bootloader_start(p_smss->conn_handle);
+	}
+	else if(command == 0x1c57ca1b) {
+		NRF_LOG_INFO("Received compass calibration command\n\r");
+		bsp_board_leds_on();
+		m_app_state.led[1] = LED_CALIB_ACCEL;
+		bno055_calibrate_accel_gyro(bno055_config.accel_bias, bno055_config.gyro_bias);
 	}
 }
 
@@ -1400,7 +1421,7 @@ int main(void)
 		if(ms58_config.dev_start)
 		{
 			nrf_gpio_pin_write(SMS_PRESSURE_SUPPLY_PIN, SMS_PRESSURE_SW_ON);
-//			pressure_enable();
+			pressure_enable();
 			ms58_config.dev_en = true;
 			app_timer_start(pressure_poll_int_id,
 							APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_PRESSURE_POLL_MS, UNIT_1_00_MS), 0),
@@ -1413,7 +1434,7 @@ int main(void)
 		if(bno055_config.dev_start)
 		{
 			nrf_gpio_pin_write(SMS_IMU_SUPPLY_PIN, SMS_IMU_SW_ON);
-//			imu_enable();
+			imu_enable();
 			bno055_config.dev_en = true;
 			app_timer_start(imu_poll_int_id,
 							APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_IMU_POLL_MS, UNIT_1_00_MS), 0),
@@ -1433,6 +1454,10 @@ int main(void)
 			m_app_state.batgauge.start = false;
 		}
 
+		if(bno055_config.accel_conf_done) {
+			m_app_state.led[1] = LED_RUNNING;
+			bno055_config.accel_conf_done = false;
+		}
 		// New value flag of the pressure sensor
 		if((ms58_interrupt.enabled) && (ms58_interrupt.new_value))
 		{

@@ -273,6 +273,8 @@ typedef struct {
 	uint8_t cal_state;
 	bool dev_start;
 	bool init_ok;
+	bool accel_conf_done;
+	bool mag_conf_done;
 	bool dev_en;
 	uint8_t comp_mask;
 }bno055_config_s;

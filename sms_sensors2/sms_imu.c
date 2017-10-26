@@ -4,8 +4,8 @@
 #include "nrf_log.h"
 
 extern const nrf_drv_twi_t twi_master_instance;
-
 extern volatile bool twi_xfer_done;
+
 
 bno055_config_s bno055_config;
 bno055_output_s bno055_output;
@@ -130,17 +130,19 @@ static void bno055_init_config_values(void)
 	bno055_config.m_odr = MODR_30Hz;	// Select magnetometer ODR when in BNO055 bypass mode
 	bno055_config.pwr_mode = Normalpwr;	// Select BNO055 power mode
 	bno055_config.opr_mode = NDOF;		// specify operation mode for sensors
+	bno055_config.accel_conf_done = false;
+	bno055_config.mag_conf_done = false;
 	NRF_LOG_DEBUG("BNO055 config values initialized\r\n");
 }
 
-static void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
+void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
 {
 	uint8_t data[6]; // data array to hold accelerometer and gyro x, y, z, data
 	uint16_t ii = 0, sample_count = 0;
 	int32_t gyro_bias[3]  = {0, 0, 0}, accel_bias[3] = {0, 0, 0};
 
-	NRF_LOG_INFO("Accel/Gyro Calibration: Put device on a level surface and keep motionless! Wait......");
-	nrf_delay_ms(4000);
+//	NRF_LOG_INFO("Accel/Gyro Calibration: Put device on a level surface and keep motionless! Wait......");
+//	nrf_delay_ms(4000);
   
 	// Select page 0 to read sensors
 	writeByte(BNO055_ADDRESS, BNO055_PAGE_ID, 0x00);
@@ -233,12 +235,14 @@ static void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
 		(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Y_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Y_LSB)),\
 		(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Z_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Z_LSB)));
 	
-	nrf_delay_ms(1000);
+//	nrf_delay_ms(1000);
+
+	bno055_config.accel_conf_done = true;
 	
 	NRF_LOG_INFO("Accel/Gyro Calibration done!\r\n");
 }
 
-static void bno055_calibrate_mag(float *dest1)
+void bno055_calibrate_mag(float *dest1)
 {
 	uint8_t data[6]; // data array to hold mag x, y, z, data
 	uint16_t ii = 0, sample_count = 0;
