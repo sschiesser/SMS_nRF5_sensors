@@ -38,6 +38,7 @@
 #include "bsp.h"
 #include "ble_gap.h"
 #include "nrf_delay.h"
+#include "fstorage.h"
 #include "nrf_drv_timer.h"
 #include "nrf_drv_saadc.h"
 #include "nrf_drv_ppi.h"
@@ -84,6 +85,7 @@
 #define BOOTLOADER_RESET_3MIN			(0x15C75ABE)							/**<Command to reset device and keep the bootloader active for 3 minutes */
 #define BOOTLOADER_DFU_START			(0xB1)
 #define DEAD_BEEF                       0xDEADBEEF								/**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
+#define FS_NUM_PAGES					4
 // LEDs/buttons
 #define SMS_CONN_LED_PIN				BSP_BOARD_LED_0							/**< Is on when device is advertising. */
 #define SMS_DATA_LED_PIN				BSP_BOARD_LED_1
@@ -187,6 +189,7 @@ typedef struct {
 }app_state_t;
 app_state_t m_app_state;
 
+static uint8_t							fs_callback_flag;
 // LED/buttons
 static uint8_t 							m_button_mask = 0;							/* Button mask to remember previous pressing state */
 // Batgauge/SAADC
@@ -419,8 +422,6 @@ static void button_press_timeout_handler(void * p_context)
 	// Reset button mask to force complete button release before next detection
 	m_button_mask = 0;
 }
-
-
 
 
 // Hardware interrupts
@@ -1013,6 +1014,7 @@ static void buttons_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
+
 /**@brief Function for initialising the SPI module.
  */
 static void spi_init(void)
@@ -1379,7 +1381,64 @@ void button_press_timer_start(void)
 					NULL);
 }
 
+static void fs_evt_handler(fs_evt_t const * const evt, fs_ret_t result)
+{
+	if(result != FS_SUCCESS) {
+		NRF_LOG_INFO("FS_EVT_HANDLER FAILURE!\n\r");
+		fs_callback_flag = 0;
+	}
+	else {
+		NRF_LOG_INFO("fstorage command successful!\n\r");
+		fs_callback_flag = 0;
+	}
+}
 
+static void fs_test(void)
+{
+	FS_REGISTER_CFG(fs_config_t fs_config) = {
+		.callback = fs_evt_handler,
+		.num_pages = FS_NUM_PAGES,
+		.priority = 0xFE
+	};
+	
+	fs_ret_t ret = fs_init();
+	if(ret != FS_SUCCESS) {
+		NRF_LOG_INFO("FAILED TO INIT FS!!\n\r");
+	}
+	
+//	NRF_LOG_INFO("FS erasing...");
+//	fs_callback_flag = 1;
+//	ret = fs_erase(&fs_config, fs_config.p_start_addr, 1, NULL);
+//	if(ret != FS_SUCCESS) {
+//		NRF_LOG_INFO(" failed!\n\r");
+//	}
+//	else {
+//		NRF_LOG_INFO(" done!\n\r");
+//	}
+//	while(fs_callback_flag == 1) { power_manage(); }
+	
+	NRF_LOG_INFO("FS writing... ");
+	uint32_t data = 0x12345678;
+	fs_callback_flag = 1;
+	ret = fs_store(&fs_config, fs_config.p_start_addr, &data, 1, NULL);
+	if(ret != FS_SUCCESS) {
+		NRF_LOG_INFO("failed!\n\r");
+	}
+	else {
+		NRF_LOG_INFO("done\n\r");
+	}
+//	while(fs_callback_flag == 1) {};
+	
+	nrf_delay_ms(25);
+	
+	NRF_LOG_INFO("FS reading... 0x");
+	uint32_t r_data[4];
+	for(uint8_t i = 0; i < 4; i++) {
+		r_data[i] = *(fs_config.p_start_addr + i);
+		NRF_LOG_INFO("%x ", r_data[i]);
+	}
+	NRF_LOG_INFO("done!\n\r");
+}
 
 /* ====================================================================
  * MAIN
@@ -1420,6 +1479,8 @@ int main(void)
 	bno055_config.dev_start = false;
     err_code = app_button_enable();
     APP_ERROR_CHECK(err_code);
+	
+	fs_test();
 		
 	// Start advertising
 	advertising_start();
@@ -1516,7 +1577,6 @@ int main(void)
 		// RTS (ready-to-send) for ms58
 		if((ms58_interrupt.enabled) && (ms58_interrupt.rts))
 		{
-//			nrf_gpio_pin_write(DBG1_PIN, 1);
 			ms58_interrupt.rts = false;
 			int32_t * tosend;
 			tosend = &ms58_output.pressure;
@@ -1527,14 +1587,11 @@ int main(void)
 			{
 				APP_ERROR_CHECK(err_code);
 			}
-//			nrf_gpio_pin_write(DBG1_PIN, 0);
 		}
 		
 		// RTS (ready-to-send) for BNO055
 		if((bno055_interrupt.enabled) && (bno055_interrupt.rts))
 		{
-//			nrf_gpio_pin_write(DBG2_PIN, 1);
-//			bsp_board_led_on(SMS_CONN_LED_PIN);
 			bno055_interrupt.rts = false;
 			uint32_t * tosend;
 			tosend = (uint32_t*)&bno055_output.quat[0].b;
@@ -1545,8 +1602,6 @@ int main(void)
 			{
 				APP_ERROR_CHECK(err_code);
 			}
-//			bsp_board_led_off(SMS_CONN_LED_PIN);
-//			nrf_gpio_pin_write(DBG2_PIN, 0);
 		}
 	}
 }
