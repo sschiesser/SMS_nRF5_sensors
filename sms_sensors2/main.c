@@ -1241,8 +1241,18 @@ static void app_update_function(ble_smss_t * p_smss, uint8_t *data)
 //		m_app_state.led[1] = LED_CALIB_ACCEL;
 //		m_app_state.sms = SMS_CALIBRATING;
 		bno055_calibrate_accel_gyro(bno055_config.accel_bias, bno055_config.gyro_bias);
-		bsp_board_leds_off();
+		bsp_board_led_off(SMS_CONN_LED_PIN);
 		bno055_calibrate_mag(bno055_config.mag_bias);
+		nrf_delay_ms(1000);
+		imu_check_cal();
+		NRF_LOG_INFO("System calibration: %d\n\r",
+					((0xC0 & bno055_config.cal_state) >> 6));
+		NRF_LOG_INFO("Gyro   calibration: %d\n\r",
+					((0x30 & bno055_config.cal_state) >> 4));
+		NRF_LOG_INFO("Accel  calibration: %d\n\r",
+					((0x0C & bno055_config.cal_state) >> 2));
+		NRF_LOG_INFO("Mag    calibration: %d\n\r",
+					((0x03 & bno055_config.cal_state) >> 0));
 		bno055_config.dev_start = true;
 	}
 }

@@ -152,7 +152,8 @@ void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
 	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, AMG);
    
 	// In NDF fusion mode, accel full scale is at +/- 4g, ODR is 62.5 Hz, set it the same here
-	writeByte(BNO055_ADDRESS, BNO055_ACC_CONFIG, bno055_config.a_pwr_mode << 5 | bno055_config.a_bw << 2 | bno055_config.a_scale );
+//	writeByte(BNO055_ADDRESS, BNO055_ACC_CONFIG, bno055_config.a_pwr_mode << 5 | bno055_config.a_bw << 2 | bno055_config.a_scale );
+	writeByte(BNO055_ADDRESS, BNO055_ACC_CONFIG, bno055_config.a_pwr_mode << 5 | bno055_config.a_bw << 2 | AFS_4G );
 	sample_count = 256;
 	for(ii = 0; ii < sample_count; ii++) {
 		int16_t accel_temp[3] = {0, 0, 0};
@@ -177,7 +178,8 @@ void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
 	dest1[2] = (float) accel_bias[2];          
 
 	// In NDF fusion mode, gyro full scale is at +/- 2000 dps, ODR is 32 Hz
-	writeByte(BNO055_ADDRESS, BNO055_GYRO_CONFIG_0, bno055_config.g_bw << 3 | bno055_config.g_scale );
+//	writeByte(BNO055_ADDRESS, BNO055_GYRO_CONFIG_0, bno055_config.g_bw << 3 | bno055_config.g_scale );
+	writeByte(BNO055_ADDRESS, BNO055_GYRO_CONFIG_0, bno055_config.g_bw << 3 | GFS_2000DPS );
 	writeByte(BNO055_ADDRESS, BNO055_GYRO_CONFIG_1, bno055_config.g_pwr_mode);
 	
 	for(ii = 0; ii < sample_count; ii++) {
@@ -213,7 +215,7 @@ void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
 	writeByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_Z_MSB, ((int16_t)accel_bias[2] >> 8) & 0xFF);
 
 	// Check that offsets were properly written to offset registers
-	NRF_LOG_DEBUG("Average accelerometer bias = %d, %d, %d\n",\
+	NRF_LOG_INFO("Average accelerometer bias = %d, %d, %d\n",\
 		(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_X_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_X_LSB)),\
 		(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_Y_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_Y_LSB)),\
 		(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_Z_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_Z_LSB)));
@@ -230,7 +232,7 @@ void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
 	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, bno055_config.opr_mode );
 
 	// Check that offsets were properly written to offset registers
-	NRF_LOG_DEBUG("Average gyro bias = %d, %d, %d\n",\
+	NRF_LOG_INFO("Average gyro bias = %d, %d, %d\n",\
 		(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_X_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_X_LSB)),\
 		(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Y_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Y_LSB)),\
 		(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Z_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Z_LSB)));
@@ -304,7 +306,7 @@ void bno055_calibrate_mag(float *dest1)
 	writeByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_Z_MSB, ((int16_t)mag_bias[2] >> 8) & 0xFF);
 
 	// Check that offsets were properly written to offset registers
-	NRF_LOG_DEBUG("Average magnetometer bias = %d, %d, %d\n",\
+	NRF_LOG_INFO("Average magnetometer bias = %d, %d, %d\n",\
 		(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_X_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_X_LSB)),\
 		(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_Y_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_Y_LSB)),\
 		(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_Z_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_Z_LSB)));
@@ -466,16 +468,16 @@ static void imu_configure(void)
 }
 
 
-static void imu_check_cal(void)
+void imu_check_cal(void)
 {
-	// Select BNO055 config mode
-	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, CONFIGMODE);
-	nrf_delay_ms(25);
+//	// Select BNO055 config mode
+//	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, CONFIGMODE);
+//	nrf_delay_ms(25);
 	// Read calibration state
 	bno055_config.cal_state = readByte(BNO055_ADDRESS, BNO055_CALIB_STAT);
-	// Select BNO055 system operation mode
-	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, bno055_config.opr_mode);
-	nrf_delay_ms(25);
+//	// Select BNO055 system operation mode
+//	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, bno055_config.opr_mode);
+//	nrf_delay_ms(25);
 }
 
 static void imu_initialize(void)
