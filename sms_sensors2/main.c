@@ -148,6 +148,7 @@ enum sms_running_states {
 	SMS_OFF,
 	SMS_ADVERTISING,
 	SMS_ADV_TIMEOUT,
+	SMS_CALIBRATING,
 	SMS_RUNNING
 };
 enum led_states {
@@ -179,7 +180,7 @@ struct batgauge_status_s {
 };
 // Application state
 typedef struct {
-	enum sms_running_states running;
+	enum sms_running_states sms;
 	enum led_states led[2];
 	enum pwm_states pwm[2];
 	struct batgauge_status_s batgauge;
@@ -319,23 +320,23 @@ static void sms_switch_off(bool restart)
 	m_app_state.batgauge.new_value = false;
 	m_app_state.batgauge.enabled = false;
 	
-	if(m_app_state.running == SMS_ADVERTISING) {
+	if(m_app_state.sms == SMS_ADVERTISING) {
 		err_code = sd_ble_gap_adv_stop();
 		NRF_LOG_DEBUG("Adv stop err_code: 0x%04x\n\r", err_code);
 		if(err_code != 0x0008) {
 			APP_ERROR_CHECK(err_code);
 		}
-		m_app_state.running = SMS_OFF;
+		m_app_state.sms = SMS_OFF;
 	}
-	else if(m_app_state.running == SMS_RUNNING) {
+	else if(m_app_state.sms == SMS_RUNNING) {
 		err_code = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
 		NRF_LOG_DEBUG("Disconnect err_code: 0x%04x\n\r", err_code);
 		if(!restart) {
-			m_app_state.running = SMS_OFF;
+			m_app_state.sms = SMS_OFF;
 		}
 	}
-	else if(m_app_state.running == SMS_ADV_TIMEOUT) {
-		m_app_state.running = SMS_OFF;
+	else if(m_app_state.sms == SMS_ADV_TIMEOUT) {
+		m_app_state.sms = SMS_OFF;
 	}
 	low_power_pwm_stop(&low_power_pwm_conn);
 	low_power_pwm_stop(&low_power_pwm_data);
@@ -403,14 +404,14 @@ static void button_press_timeout_handler(void * p_context)
 
 	if(button_state == m_button_mask) {
 		if(button_state == 0x11) {
-			NRF_LOG_DEBUG("DOUBLE long press!! SMS state: %d\n\r", m_app_state.running);
-			if((m_app_state.running == SMS_ADVERTISING) || (m_app_state.running == SMS_RUNNING)) {
+			NRF_LOG_DEBUG("DOUBLE long press!! SMS state: %d\n\r", m_app_state.sms);
+			if((m_app_state.sms == SMS_ADVERTISING) || (m_app_state.sms == SMS_RUNNING)) {
 				sms_switch_off(false);
 			}
 		}
 		else if((button_state == 0x01) || (button_state == 0x10)) {
-			NRF_LOG_DEBUG("SINGLE long press!! SMS state: %d\n\r", m_app_state.running);
-			if(m_app_state.running == SMS_OFF) {
+			NRF_LOG_DEBUG("SINGLE long press!! SMS state: %d\n\r", m_app_state.sms);
+			if(m_app_state.sms == SMS_OFF) {
 				sms_switch_on();
 			}
 		}
@@ -635,7 +636,7 @@ static void pwm_conn_handler(void * p_context)
 						blink_cnt = 0;
 						m_app_state.pwm[0] = PWM_OFF;
 						m_app_state.led[0] = LED_CONNECTED;
-						m_app_state.running = SMS_RUNNING;
+						m_app_state.sms = SMS_RUNNING;
 						ms58_config.dev_start = true;
 						bno055_config.dev_start = true;
 						m_app_state.batgauge.start = true;
@@ -805,7 +806,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 			NRF_LOG_DEBUG("Disconnected\r\n");
 			m_app_state.led[1] = LED_DISCONNECTED;
 			sensors_stop();
-			if(m_app_state.running == SMS_RUNNING) {
+			if(m_app_state.sms == SMS_RUNNING) {
 				advertising_start();
 			}
 
@@ -823,7 +824,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
 		case BLE_GAP_EVT_TIMEOUT:
 			NRF_LOG_DEBUG("GAP Event Timeout.\r\n");
 			m_app_state.led[0] = LED_GAP_TIMEOUT;
-			m_app_state.running = SMS_ADV_TIMEOUT;
+			m_app_state.sms = SMS_ADV_TIMEOUT;
 			sms_switch_off(false);
 			break;
 
@@ -1225,16 +1226,19 @@ static void app_update_function(ble_smss_t * p_smss, uint8_t *data)
 						(data[1] << 8) +
 						(data[2] << 16) +
 						(data[3] << 24));
-	NRF_LOG_INFO("Received app update command: %#x\n\r", command);
+	NRF_LOG_DEBUG("Received app update command: %#x\n\r", command);
 	if(command == 0x1c57b007) {
 		NRF_LOG_DEBUG("Restarting device with 3 min bootloader...\n\r");
 		bootloader_start(p_smss->conn_handle);
 	}
 	else if(command == 0x1c57ca1b) {
-		NRF_LOG_INFO("Received compass calibration command\n\r");
+		NRF_LOG_DEBUG("Received compass calibration command\n\r");
 		bsp_board_leds_on();
+		m_app_state.pwm[1] = PWM_ON;
 		m_app_state.led[1] = LED_CALIB_ACCEL;
+		m_app_state.sms = SMS_CALIBRATING;
 		bno055_calibrate_accel_gyro(bno055_config.accel_bias, bno055_config.gyro_bias);
+		bno055_calibrate_mag(bno055_config.mag_bias);
 	}
 }
 
@@ -1307,7 +1311,7 @@ void advertising_start(void)
 	err_code = low_power_pwm_start((&low_power_pwm_conn), low_power_pwm_conn.bit_mask);
 	APP_ERROR_CHECK(err_code);
 	
-	m_app_state.running = SMS_ADVERTISING;
+	m_app_state.sms = SMS_ADVERTISING;
 	err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
 	APP_ERROR_CHECK(err_code);
 }
@@ -1456,8 +1460,15 @@ int main(void)
 
 		if(bno055_config.accel_conf_done) {
 			m_app_state.led[1] = LED_RUNNING;
+			m_app_state.sms = SMS_RUNNING;
 			bno055_config.accel_conf_done = false;
 		}
+		if(bno055_config.mag_conf_done) {
+			m_app_state.led[1] = LED_RUNNING;
+			m_app_state.sms = SMS_RUNNING;
+			bno055_config.mag_conf_done = false;
+		}
+		
 		// New value flag of the pressure sensor
 		if((ms58_interrupt.enabled) && (ms58_interrupt.new_value))
 		{
@@ -1513,6 +1524,7 @@ int main(void)
 		if((bno055_interrupt.enabled) && (bno055_interrupt.rts))
 		{
 //			nrf_gpio_pin_write(DBG2_PIN, 1);
+//			bsp_board_led_on(SMS_CONN_LED_PIN);
 			bno055_interrupt.rts = false;
 			uint32_t * tosend;
 			tosend = (uint32_t*)&bno055_output.quat[0].b;
@@ -1523,6 +1535,7 @@ int main(void)
 			{
 				APP_ERROR_CHECK(err_code);
 			}
+//			bsp_board_led_off(SMS_CONN_LED_PIN);
 //			nrf_gpio_pin_write(DBG2_PIN, 0);
 		}
 	}

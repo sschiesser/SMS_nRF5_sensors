@@ -2,6 +2,7 @@
 //#include "nrf_drv_delay.h"
 #define NRF_LOG_MODULE_NAME "IMU"
 #include "nrf_log.h"
+#include "boards.h"
 
 extern const nrf_drv_twi_t twi_master_instance;
 extern volatile bool twi_xfer_done;
@@ -152,9 +153,10 @@ void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
 	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, AMG);
    
 	// In NDF fusion mode, accel full scale is at +/- 4g, ODR is 62.5 Hz, set it the same here
-	writeByte(BNO055_ADDRESS, BNO055_ACC_CONFIG, bno055_config.a_pwr_mode << 5 | bno055_config.a_bw << 2 | AFS_4G );
+	writeByte(BNO055_ADDRESS, BNO055_ACC_CONFIG, bno055_config.a_pwr_mode << 5 | bno055_config.a_bw << 2 | bno055_config.a_scale );
 	sample_count = 256;
 	for(ii = 0; ii < sample_count; ii++) {
+		if(ii%4 == 0) bsp_board_led_invert(BSP_BOARD_LED_1);
 		int16_t accel_temp[3] = {0, 0, 0};
 		readBytes(BNO055_ADDRESS, BNO055_ACC_DATA_X_LSB, 6, &data[0]);  // Read the six raw data registers into data array
 		accel_temp[0] = (int16_t) (((int16_t)data[1] << 8) | data[0]) ; // Form signed 16-bit integer for each sample in FIFO
@@ -177,10 +179,11 @@ void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
 	dest1[2] = (float) accel_bias[2];          
 
 	// In NDF fusion mode, gyro full scale is at +/- 2000 dps, ODR is 32 Hz
-	writeByte(BNO055_ADDRESS, BNO055_GYRO_CONFIG_0, bno055_config.g_bw << 3 | GFS_2000DPS );
+	writeByte(BNO055_ADDRESS, BNO055_GYRO_CONFIG_0, bno055_config.g_bw << 3 | bno055_config.g_scale );
 	writeByte(BNO055_ADDRESS, BNO055_GYRO_CONFIG_1, bno055_config.g_pwr_mode);
 	
 	for(ii = 0; ii < sample_count; ii++) {
+		if(ii%4 == 0) bsp_board_led_invert(BSP_BOARD_LED_1);
 		int16_t gyro_temp[3] = {0, 0, 0};
 		readBytes(BNO055_ADDRESS, BNO055_GYR_DATA_X_LSB, 6, &data[0]);  // Read the six raw data registers into data array
 		gyro_temp[0] = (int16_t) (((int16_t)data[1] << 8) | data[0]) ;  // Form signed 16-bit integer for each sample in FIFO
@@ -213,7 +216,7 @@ void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
 	writeByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_Z_MSB, ((int16_t)accel_bias[2] >> 8) & 0xFF);
 
 	// Check that offsets were properly written to offset registers
-	NRF_LOG_INFO("Average accelerometer bias = %d, %d, %d\n",\
+	NRF_LOG_DEBUG("Average accelerometer bias = %d, %d, %d\n",\
 		(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_X_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_X_LSB)),\
 		(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_Y_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_Y_LSB)),\
 		(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_Z_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_ACC_OFFSET_Z_LSB)));
@@ -230,7 +233,7 @@ void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
 	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, bno055_config.opr_mode );
 
 	// Check that offsets were properly written to offset registers
-	NRF_LOG_INFO("Average gyro bias = %d, %d, %d\n",\
+	NRF_LOG_DEBUG("Average gyro bias = %d, %d, %d\n",\
 		(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_X_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_X_LSB)),\
 		(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Y_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Y_LSB)),\
 		(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Z_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_GYR_OFFSET_Z_LSB)));
@@ -239,7 +242,7 @@ void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
 
 	bno055_config.accel_conf_done = true;
 	
-	NRF_LOG_INFO("Accel/Gyro Calibration done!\r\n");
+	NRF_LOG_DEBUG("Accel/Gyro Calibration done!\r\n");
 }
 
 void bno055_calibrate_mag(float *dest1)
@@ -249,8 +252,8 @@ void bno055_calibrate_mag(float *dest1)
 	int32_t mag_bias[3] = {0, 0, 0};
 	int16_t mag_max[3] = {0, 0, 0}, mag_min[3] = {0, 0, 0};
 
-	NRF_LOG_INFO("Mag Calibration: Wave device in a figure eight until done!");
-	nrf_delay_ms(4000);
+//	NRF_LOG_INFO("Mag Calibration: Wave device in a figure eight until done!");
+//	nrf_delay_ms(4000);
 
 	// Select page 0 to read sensors
 	writeByte(BNO055_ADDRESS, BNO055_PAGE_ID, 0x00);
@@ -262,6 +265,7 @@ void bno055_calibrate_mag(float *dest1)
 	// In NDF fusion mode, mag data is in 16 LSB/microTesla, ODR is 20 Hz in forced mode
 	sample_count = 256;
 	for(ii = 0; ii < sample_count; ii++) {
+		if(ii%4 == 0) bsp_board_led_invert(BSP_BOARD_LED_0);
 		int16_t mag_temp[3] = {0, 0, 0};
 		readBytes(BNO055_ADDRESS, BNO055_MAG_DATA_X_LSB, 6, &data[0]);  // Read the six raw data registers into data array
 		mag_temp[0] = (int16_t) (((int16_t)data[1] << 8) | data[0]) ;   // Form signed 16-bit integer for each sample in FIFO
@@ -279,9 +283,9 @@ void bno055_calibrate_mag(float *dest1)
 		nrf_delay_ms(105);  // at 10 Hz ODR, new mag data is available every 100 ms
 	}
 
-	NRF_LOG_INFO("mag x min/max: %d, %d\r\n", mag_min[0], mag_max[0]);
-	NRF_LOG_INFO("mag y min/max: %d, %d\r\n", mag_min[1], mag_max[1]);
-	NRF_LOG_INFO("mag z min/max: %d, %d\r\n", mag_min[2], mag_max[2]);
+	NRF_LOG_DEBUG("mag x min/max: %d, %d\r\n", mag_min[0], mag_max[0]);
+	NRF_LOG_DEBUG("mag y min/max: %d, %d\r\n", mag_min[1], mag_max[1]);
+	NRF_LOG_DEBUG("mag z min/max: %d, %d\r\n", mag_min[2], mag_max[2]);
 	
 	mag_bias[0]  = (mag_max[0] + mag_min[0])/2;  // get average x mag bias in counts
 	mag_bias[1]  = (mag_max[1] + mag_min[1])/2;  // get average y mag bias in counts
@@ -305,7 +309,7 @@ void bno055_calibrate_mag(float *dest1)
 	writeByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_Z_MSB, ((int16_t)mag_bias[2] >> 8) & 0xFF);
 
 	// Check that offsets were properly written to offset registers
-	NRF_LOG_INFO("Average magnetometer bias = %d, %d, %d\n",\
+	NRF_LOG_DEBUG("Average magnetometer bias = %d, %d, %d\n",\
 		(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_X_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_X_LSB)),\
 		(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_Y_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_Y_LSB)),\
 		(int16_t)((int16_t)readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_Z_MSB) << 8 | readByte(BNO055_ADDRESS, BNO055_MAG_OFFSET_Z_LSB)));
@@ -314,9 +318,11 @@ void bno055_calibrate_mag(float *dest1)
 	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, bno055_config.opr_mode);
 	nrf_delay_ms(25);
 
-	nrf_delay_ms(1000);
+//	nrf_delay_ms(1000);
+
+	bno055_config.mag_conf_done = true;
 	
-	NRF_LOG_INFO("Mag Calibration done!\r\n");
+	NRF_LOG_DEBUG("Mag Calibration done!\r\n");
 }
 
 
