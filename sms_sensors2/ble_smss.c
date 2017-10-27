@@ -444,7 +444,7 @@ uint32_t ble_smss_on_imu_value(ble_smss_t * p_smss, uint32_t * imu_value)
 //					(uint32_t)hvx_params.p_data,
 //					p_smss->conn_handle,
 //					hvx_params.handle);
-		
+
 		return sd_ble_gatts_hvx(p_smss->conn_handle, &hvx_params);
 	}
 	return BLE_ERROR_INVALID_CONN_HANDLE;

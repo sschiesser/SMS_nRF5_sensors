@@ -38,7 +38,6 @@
 #include "bsp.h"
 #include "ble_gap.h"
 #include "nrf_delay.h"
-#include "fstorage.h"
 #include "nrf_drv_timer.h"
 #include "nrf_drv_saadc.h"
 #include "nrf_drv_ppi.h"
@@ -189,7 +188,6 @@ typedef struct {
 }app_state_t;
 app_state_t m_app_state;
 
-static uint8_t							fs_callback_flag;
 // LED/buttons
 static uint8_t 							m_button_mask = 0;							/* Button mask to remember previous pressing state */
 // Batgauge/SAADC
@@ -310,7 +308,7 @@ static void sms_switch_off(bool restart)
 {
 	uint32_t err_code;
 	
-	NRF_LOG_INFO("Switching-off SMS sensors...\n\r");
+//	NRF_LOG_INFO("Switching-off SMS sensors...\n\r");
 	
 	bno055_interrupt.new_value = false;
 	bno055_interrupt.rts = false;
@@ -442,10 +440,11 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
 			else send_value &= 0xFF00;
 			NRF_LOG_DEBUG("Bt1 pressed\r\n", send_value);
 			err_code = ble_smss_on_button_change(&m_smss_service, send_value);
-			if (err_code != NRF_SUCCESS &&						// 0x0000
-				err_code != BLE_ERROR_INVALID_CONN_HANDLE &&	// 0x3002
-				err_code != NRF_ERROR_INVALID_STATE &&			// 0x0008
-				err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)	// 0x3401
+			if((err_code != NRF_SUCCESS) &&							// 0x0000
+				(err_code != NRF_ERROR_INVALID_STATE) &&			// 0x0008
+				(err_code != BLE_ERROR_INVALID_CONN_HANDLE) &&		// 0x3002
+				(err_code != BLE_ERROR_NO_TX_PACKETS) &&			// 0x3004
+				(err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING))		// 0x3401
 			{
 				APP_ERROR_CHECK(err_code);
 			}
@@ -469,10 +468,11 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
 			else send_value &= 0x00FF;
 			NRF_LOG_DEBUG("Bt2 pressed\r\n", send_value);
 			err_code = ble_smss_on_button_change(&m_smss_service, send_value);
-			if (err_code != NRF_SUCCESS &&						// 0x0000
-				err_code != BLE_ERROR_INVALID_CONN_HANDLE &&	// 0x3002
-				err_code != NRF_ERROR_INVALID_STATE &&			// 0x0008
-				err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)	// 0x3401
+			if((err_code != NRF_SUCCESS) &&							// 0x0000
+				(err_code != NRF_ERROR_INVALID_STATE) &&			// 0x0008
+				(err_code != BLE_ERROR_INVALID_CONN_HANDLE) &&		// 0x3002
+				(err_code != BLE_ERROR_NO_TX_PACKETS) &&			// 0x3004
+				(err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING))		// 0x3401
 			{
 				APP_ERROR_CHECK(err_code);
 			}
@@ -892,7 +892,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
             APP_ERROR_CHECK(err_code);
             break; // BLE_GATTS_EVT_EXCHANGE_MTU_REQUEST
 #endif
-
+		
         default:
             // No implementation needed.
             break;
@@ -1230,7 +1230,7 @@ static void app_update_function(ble_smss_t * p_smss, uint8_t *data)
 						(data[3] << 24));
 	NRF_LOG_DEBUG("Received app update command: %#x\n\r", command);
 	if(command == 0x1c57b007) {
-		NRF_LOG_DEBUG("Restarting device with 3 min bootloader...\n\r");
+		NRF_LOG_INFO("Restarting device with 3 min bootloader...\n\r");
 		bootloader_start(p_smss->conn_handle);
 	}
 	else if(command == 0x1c57ca1b) {
@@ -1247,15 +1247,15 @@ static void app_update_function(ble_smss_t * p_smss, uint8_t *data)
 		bno055_calibrate_mag(bno055_config.mag_bias);
 		nrf_delay_ms(1000);
 		imu_check_cal();
-		NRF_LOG_INFO("System calibration: %d\n\r",
+		NRF_LOG_DEBUG("System calibration: %d\n\r",
 					((0xC0 & bno055_config.cal_state) >> 6));
-		NRF_LOG_INFO("Gyro   calibration: %d\n\r",
+		NRF_LOG_DEBUG("Gyro   calibration: %d\n\r",
 					((0x30 & bno055_config.cal_state) >> 4));
-		NRF_LOG_INFO("Accel  calibration: %d\n\r",
+		NRF_LOG_DEBUG("Accel  calibration: %d\n\r",
 					((0x0C & bno055_config.cal_state) >> 2));
-		NRF_LOG_INFO("Mag    calibration: %d\n\r",
+		NRF_LOG_DEBUG("Mag    calibration: %d\n\r",
 					((0x03 & bno055_config.cal_state) >> 0));
-		bno055_config.dev_start = true;
+		bno055_config.dev_calib_done = true;
 	}
 }
 
@@ -1381,64 +1381,7 @@ void button_press_timer_start(void)
 					NULL);
 }
 
-static void fs_evt_handler(fs_evt_t const * const evt, fs_ret_t result)
-{
-	if(result != FS_SUCCESS) {
-		NRF_LOG_INFO("FS_EVT_HANDLER FAILURE!\n\r");
-		fs_callback_flag = 0;
-	}
-	else {
-		NRF_LOG_INFO("fstorage command successful!\n\r");
-		fs_callback_flag = 0;
-	}
-}
 
-static void fs_test(void)
-{
-	FS_REGISTER_CFG(fs_config_t fs_config) = {
-		.callback = fs_evt_handler,
-		.num_pages = FS_NUM_PAGES,
-		.priority = 0xFE
-	};
-	
-	fs_ret_t ret = fs_init();
-	if(ret != FS_SUCCESS) {
-		NRF_LOG_INFO("FAILED TO INIT FS!!\n\r");
-	}
-	
-//	NRF_LOG_INFO("FS erasing...");
-//	fs_callback_flag = 1;
-//	ret = fs_erase(&fs_config, fs_config.p_start_addr, 1, NULL);
-//	if(ret != FS_SUCCESS) {
-//		NRF_LOG_INFO(" failed!\n\r");
-//	}
-//	else {
-//		NRF_LOG_INFO(" done!\n\r");
-//	}
-//	while(fs_callback_flag == 1) { power_manage(); }
-	
-	NRF_LOG_INFO("FS writing... ");
-	uint32_t data = 0x12345678;
-	fs_callback_flag = 1;
-	ret = fs_store(&fs_config, fs_config.p_start_addr, &data, 1, NULL);
-	if(ret != FS_SUCCESS) {
-		NRF_LOG_INFO("failed!\n\r");
-	}
-	else {
-		NRF_LOG_INFO("done\n\r");
-	}
-//	while(fs_callback_flag == 1) {};
-	
-	nrf_delay_ms(25);
-	
-	NRF_LOG_INFO("FS reading... 0x");
-	uint32_t r_data[4];
-	for(uint8_t i = 0; i < 4; i++) {
-		r_data[i] = *(fs_config.p_start_addr + i);
-		NRF_LOG_INFO("%x ", r_data[i]);
-	}
-	NRF_LOG_INFO("done!\n\r");
-}
 
 /* ====================================================================
  * MAIN
@@ -1480,8 +1423,6 @@ int main(void)
     err_code = app_button_enable();
     APP_ERROR_CHECK(err_code);
 	
-	fs_test();
-		
 	// Start advertising
 	advertising_start();
 
@@ -1534,11 +1475,12 @@ int main(void)
 			m_app_state.batgauge.start = false;
 		}
 
-//		if(bno055_config.dev_conf_done) {
-//			m_app_state.led[1] = LED_RUNNING;
-//			m_app_state.sms = SMS_RUNNING;
-//			bno055_config.dev_conf_done = false;
-//		}
+		if(bno055_config.dev_calib_done) {
+			m_app_state.led[1] = LED_RUNNING;
+			m_app_state.sms = SMS_RUNNING;
+			bno055_interrupt.enabled = true;
+			bno055_config.dev_calib_done = false;
+		}
 		
 		// New value flag of the pressure sensor
 		if((ms58_interrupt.enabled) && (ms58_interrupt.new_value))
@@ -1553,6 +1495,7 @@ int main(void)
 		if((bno055_interrupt.enabled) && (bno055_interrupt.new_value))
 		{
 //			nrf_gpio_pin_write(DBG2_PIN, 1);
+//			NRF_LOG_INFO("BNO055 interrupt\n\r");
 			bno055_interrupt.new_value = false;
 			imu_poll_data(SMS_IMU_DATAMSK_QUAT);
 //			nrf_gpio_pin_write(DBG2_PIN, 0);
@@ -1564,11 +1507,11 @@ int main(void)
 			m_app_state.batgauge.new_value = false;
 			uint32_t err_code;
 			err_code = ble_bas_battery_level_update(&m_bas, (uint8_t)m_app_state.batgauge.bat_level);
-			if ((err_code != NRF_SUCCESS) &&
-				(err_code != NRF_ERROR_INVALID_STATE) &&
-				(err_code != BLE_ERROR_NO_TX_PACKETS) &&
-				(err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)
-			   )
+			if((err_code != NRF_SUCCESS) &&							// 0x0000
+				(err_code != NRF_ERROR_INVALID_STATE) &&			// 0x0008
+				(err_code != BLE_ERROR_INVALID_CONN_HANDLE) &&		// 0x3002
+				(err_code != BLE_ERROR_NO_TX_PACKETS) &&			// 0x3004
+				(err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING))		// 0x3401
 			{
 				APP_ERROR_HANDLER(err_code);
 			}
@@ -1581,14 +1524,17 @@ int main(void)
 			int32_t * tosend;
 			tosend = &ms58_output.pressure;
 			err_code = ble_smss_on_press_value(&m_smss_service, tosend);
-			if(	(err_code != 0x3401) &&
-				(err_code != 0x0008) &&
-				(err_code != 0) )
+			if((err_code != NRF_SUCCESS) &&							// 0x0000
+				(err_code != NRF_ERROR_INVALID_STATE) &&			// 0x0008
+				(err_code != BLE_ERROR_INVALID_CONN_HANDLE) &&		// 0x3002
+				(err_code != BLE_ERROR_NO_TX_PACKETS) &&			// 0x3004
+				(err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING))		// 0x3401
 			{
 				APP_ERROR_CHECK(err_code);
 			}
 		}
 		
+
 		// RTS (ready-to-send) for BNO055
 		if((bno055_interrupt.enabled) && (bno055_interrupt.rts))
 		{
@@ -1596,9 +1542,11 @@ int main(void)
 			uint32_t * tosend;
 			tosend = (uint32_t*)&bno055_output.quat[0].b;
 			err_code = ble_smss_on_imu_value(&m_smss_service, tosend);
-			if(	(err_code != 0x3401) &&
-				(err_code != 0x0008) &&
-				(err_code != 0) )
+			if((err_code != NRF_SUCCESS) &&							// 0x0000
+				(err_code != NRF_ERROR_INVALID_STATE) &&			// 0x0008
+				(err_code != BLE_ERROR_INVALID_CONN_HANDLE) &&		// 0x3002
+				(err_code != BLE_ERROR_NO_TX_PACKETS) &&			// 0x3004
+				(err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING))		// 0x3401
 			{
 				APP_ERROR_CHECK(err_code);
 			}

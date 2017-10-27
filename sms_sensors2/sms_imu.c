@@ -131,7 +131,7 @@ static void bno055_init_config_values(void)
 	bno055_config.m_odr = MODR_30Hz;	// Select magnetometer ODR when in BNO055 bypass mode
 	bno055_config.pwr_mode = Normalpwr;	// Select BNO055 power mode
 	bno055_config.opr_mode = NDOF;		// specify operation mode for sensors
-	bno055_config.dev_conf_done = false;
+	bno055_config.dev_calib_done = false;
 	NRF_LOG_DEBUG("BNO055 config values initialized\r\n");
 }
 
