@@ -60,16 +60,16 @@
 #define CENTRAL_LINK_COUNT              0										/**< Number of central links used by the application. When changing this number remember to adjust the RAM settings*/
 #define PERIPHERAL_LINK_COUNT           1										/**< Number of peripheral links used by the application. When changing this number remember to adjust the RAM settings*/
 #if (NRF_SD_BLE_API_VERSION == 3)
-	#define NRF_BLE_MAX_MTU_SIZE            GATT_MTU_SIZE_DEFAULT					/**< MTU size used in the softdevice enabling and to reply to a BLE_GATTS_EVT_EXCHANGE_MTU_REQUEST event. */
+	#define NRF_BLE_MAX_MTU_SIZE		GATT_MTU_SIZE_DEFAULT					/**< MTU size used in the softdevice enabling and to reply to a BLE_GATTS_EVT_EXCHANGE_MTU_REQUEST event. */
 #endif
 #define SMS_ADV_INTERVAL                64										/**< The advertising interval (in units of 0.625 ms; this value corresponds to 40 ms). */
-#define SMS_ADV_TIMEOUT_IN_SECONDS      30
+#define SMS_ADV_TIMEOUT_IN_SECONDS      30										/**< The advertisement timeout value in seconds */
 #define SMS_FEATURE_NOT_SUPPORTED       BLE_GATT_STATUS_ATTERR_APP_BEGIN + 2	/**< Reply when unsupported features are requested. */
 #define MIN_CONN_INTERVAL               MSEC_TO_UNITS(15, UNIT_1_25_MS)			/**< Minimum acceptable connection interval (15 ms). */
 #define MAX_CONN_INTERVAL               MSEC_TO_UNITS(20, UNIT_1_25_MS)			/**< Maximum acceptable connection interval (20 ms). */
 #define SLAVE_LATENCY                   0										/**< Slave latency. */
-#define CONN_SUP_TIMEOUT                MSEC_TO_UNITS(2000, UNIT_10_MS)			/**< Connection supervisory time-out (4 seconds). */
-#define FIRST_CONN_PARAMS_UPDATE_DELAY  APP_TIMER_TICKS(20000, APP_TIMER_PRESCALER)	/**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (15 seconds). */
+#define CONN_SUP_TIMEOUT                MSEC_TO_UNITS(2000, UNIT_10_MS)			/**< Connection supervisory time-out (2 seconds). */
+#define FIRST_CONN_PARAMS_UPDATE_DELAY  APP_TIMER_TICKS(20000, APP_TIMER_PRESCALER)	/**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (20 seconds). */
 #define NEXT_CONN_PARAMS_UPDATE_DELAY   APP_TIMER_TICKS(5000, APP_TIMER_PRESCALER)	/**< Time between each call to sd_ble_gap_conn_param_update after the first call (5 seconds). */
 #define MAX_CONN_PARAMS_UPDATE_COUNT    3										/**< Number of attempts before giving up the connection parameter negotiation. */
 
@@ -84,7 +84,6 @@
 #define BOOTLOADER_RESET_3MIN			(0x15C75ABE)							/**<Command to reset device and keep the bootloader active for 3 minutes */
 #define BOOTLOADER_DFU_START			(0xB1)
 #define DEAD_BEEF                       0xDEADBEEF								/**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
-#define FS_NUM_PAGES					4
 // LEDs/buttons
 #define SMS_CONN_LED_PIN				BSP_BOARD_LED_0							/**< Is on when device is advertising. */
 #define SMS_DATA_LED_PIN				BSP_BOARD_LED_1
@@ -99,6 +98,10 @@
 // Batgauge/SAADC
 #define SMS_BATGAUGE_SAMPLE_RATE_MS		1000									/* Time between each ADC sample */
 #define ADC_SAMPLES_IN_BUFFER 			2										/* Number of ADC samples before a batgauge averaging is called */
+#define BAT_CONV_ADC0					156
+#define BAT_CONV_ADC100					186
+#define BAT_CONV_DELTA					(100/(BAT_CONV_ADC100-BAT_CONV_ADC0))
+#define BAT_CONV_OFFSET					(-BAT_CONV_DELTA * BAT_CONV_ADC0)
 // PWM
 #define PWM_PERIOD_129HZ				250 // Duty cycle (PWM/off) = 50%
 #define PWM_PERIOD_198HZ				200	// Duty cycle (PWM/off) = 45%
@@ -556,7 +559,10 @@ void batgauge_event_handler(nrf_drv_saadc_evt_t const * p_event)
 			NRF_LOG_DEBUG("%d\r\n", m_buffer_pool[0][i]);
 			sum += m_buffer_pool[0][i];
 		}
-		m_app_state.batgauge.bat_level = sum / ADC_SAMPLES_IN_BUFFER;
+		float adc = (float)sum / ADC_SAMPLES_IN_BUFFER;
+		float level = (float)BAT_CONV_DELTA * adc + (float)BAT_CONV_OFFSET;
+		m_app_state.batgauge.bat_level = (uint32_t)level;
+//		m_app_state.batgauge.bat_level = (uint32_t)adc;
 		NRF_LOG_DEBUG("Batgauge avg: %d (sum: %d)\n\r", m_app_state.batgauge.bat_level, sum);
 		m_adc_evt_counter++;
 		m_app_state.batgauge.new_value = true;
@@ -1086,18 +1092,6 @@ static void timers_init(void)
 								APP_TIMER_MODE_REPEATED,
 								saadc_timer_handler);
 	APP_ERROR_CHECK(err_code);
-	
-//	// - LED0 timer
-//	err_code = app_timer_create(&led0_timer_id,
-//								APP_TIMER_MODE_REPEATED,
-//								led0_timer_handler);
-//	APP_ERROR_CHECK(err_code);
-//	
-//	// - LED1 timer
-//	err_code = app_timer_create(&led1_timer_id,
-//								APP_TIMER_MODE_REPEATED,
-//								led1_timer_handler);
-//	APP_ERROR_CHECK(err_code);
 }
 
 /**@brief Function for starting the bootloader for 3 minutes
@@ -1113,7 +1107,8 @@ static void bootloader_start(uint16_t conn_handle)
 	/* Force disconnect, disable softdevice, and then reset */
 	sd_ble_gap_disconnect(conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
 	// The below requires at least bootloader 3.1
-	err_code = sd_power_gpregret_set(BOOTLOADER_DFU_START, 0x000000FF);
+//	err_code = sd_power_gpregret_set(BOOTLOADER_DFU_START, 0x000000FF);
+	err_code = sd_power_gpregret_set(0, BOOTLOADER_DFU_START);
 	APP_ERROR_CHECK(err_code);
 	
 	sd_softdevice_disable();
@@ -1224,13 +1219,11 @@ static void advertising_init(void)
  */
 static void app_update_function(ble_smss_t * p_smss, uint8_t *data)
 {
-	uint32_t command = (data[0] +
-						(data[1] << 8) +
-						(data[2] << 16) +
-						(data[3] << 24));
+	uint32_t command =	(data[0] + (data[1] << 8) +
+						(data[2] << 16) + (data[3] << 24));
 	NRF_LOG_DEBUG("Received app update command: %#x\n\r", command);
 	if(command == 0x1c57b007) {
-		NRF_LOG_INFO("Restarting device with 3 min bootloader...\n\r");
+		NRF_LOG_DEBUG("Restarting device with 3 min bootloader...\n\r");
 		bootloader_start(p_smss->conn_handle);
 	}
 	else if(command == 0x1c57ca1b) {
@@ -1239,9 +1232,6 @@ static void app_update_function(ble_smss_t * p_smss, uint8_t *data)
 		bno055_interrupt.new_value = false;
 		bno055_interrupt.rts = false;
 		bsp_board_leds_on();
-//		m_app_state.pwm[1] = PWM_ON;
-//		m_app_state.led[1] = LED_CALIB_ACCEL;
-//		m_app_state.sms = SMS_CALIBRATING;
 		bno055_calibrate_accel_gyro(bno055_config.accel_bias, bno055_config.gyro_bias);
 		bsp_board_led_off(SMS_CONN_LED_PIN);
 		bno055_calibrate_mag(bno055_config.mag_bias);
@@ -1475,6 +1465,7 @@ int main(void)
 			m_app_state.batgauge.start = false;
 		}
 
+		// BNO055 calibration has been done, polling can continue
 		if(bno055_config.dev_calib_done) {
 			m_app_state.led[1] = LED_RUNNING;
 			m_app_state.sms = SMS_RUNNING;
