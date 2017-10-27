@@ -1233,12 +1233,17 @@ static void app_update_function(ble_smss_t * p_smss, uint8_t *data)
 	}
 	else if(command == 0x1c57ca1b) {
 		NRF_LOG_DEBUG("Received compass calibration command\n\r");
+		bno055_interrupt.enabled = false;
+		bno055_interrupt.new_value = false;
+		bno055_interrupt.rts = false;
 		bsp_board_leds_on();
-		m_app_state.pwm[1] = PWM_ON;
-		m_app_state.led[1] = LED_CALIB_ACCEL;
-		m_app_state.sms = SMS_CALIBRATING;
+//		m_app_state.pwm[1] = PWM_ON;
+//		m_app_state.led[1] = LED_CALIB_ACCEL;
+//		m_app_state.sms = SMS_CALIBRATING;
 		bno055_calibrate_accel_gyro(bno055_config.accel_bias, bno055_config.gyro_bias);
+		bsp_board_leds_off();
 		bno055_calibrate_mag(bno055_config.mag_bias);
+		bno055_config.dev_start = true;
 	}
 }
 
@@ -1430,7 +1435,7 @@ int main(void)
 			app_timer_start(pressure_poll_int_id,
 							APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_PRESSURE_POLL_MS, UNIT_1_00_MS), 0),
 							NULL);
-			ms58_interrupt.enabled = ms58_config.dev_en;
+			ms58_interrupt.enabled = true;
 			ms58_config.dev_start = false;
 		}
 		
@@ -1443,7 +1448,7 @@ int main(void)
 			app_timer_start(imu_poll_int_id,
 							APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_IMU_POLL_MS, UNIT_1_00_MS), 0),
 							NULL);
-			bno055_interrupt.enabled = bno055_config.dev_en;
+			bno055_interrupt.enabled = true;
 			bno055_config.dev_start = false;
 		}
 		
@@ -1458,16 +1463,11 @@ int main(void)
 			m_app_state.batgauge.start = false;
 		}
 
-		if(bno055_config.accel_conf_done) {
-			m_app_state.led[1] = LED_RUNNING;
-			m_app_state.sms = SMS_RUNNING;
-			bno055_config.accel_conf_done = false;
-		}
-		if(bno055_config.mag_conf_done) {
-			m_app_state.led[1] = LED_RUNNING;
-			m_app_state.sms = SMS_RUNNING;
-			bno055_config.mag_conf_done = false;
-		}
+//		if(bno055_config.dev_conf_done) {
+//			m_app_state.led[1] = LED_RUNNING;
+//			m_app_state.sms = SMS_RUNNING;
+//			bno055_config.dev_conf_done = false;
+//		}
 		
 		// New value flag of the pressure sensor
 		if((ms58_interrupt.enabled) && (ms58_interrupt.new_value))

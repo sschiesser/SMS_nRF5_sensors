@@ -131,8 +131,7 @@ static void bno055_init_config_values(void)
 	bno055_config.m_odr = MODR_30Hz;	// Select magnetometer ODR when in BNO055 bypass mode
 	bno055_config.pwr_mode = Normalpwr;	// Select BNO055 power mode
 	bno055_config.opr_mode = NDOF;		// specify operation mode for sensors
-	bno055_config.accel_conf_done = false;
-	bno055_config.mag_conf_done = false;
+	bno055_config.dev_conf_done = false;
 	NRF_LOG_DEBUG("BNO055 config values initialized\r\n");
 }
 
@@ -156,7 +155,6 @@ void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
 	writeByte(BNO055_ADDRESS, BNO055_ACC_CONFIG, bno055_config.a_pwr_mode << 5 | bno055_config.a_bw << 2 | bno055_config.a_scale );
 	sample_count = 256;
 	for(ii = 0; ii < sample_count; ii++) {
-		if(ii%4 == 0) bsp_board_led_invert(BSP_BOARD_LED_1);
 		int16_t accel_temp[3] = {0, 0, 0};
 		readBytes(BNO055_ADDRESS, BNO055_ACC_DATA_X_LSB, 6, &data[0]);  // Read the six raw data registers into data array
 		accel_temp[0] = (int16_t) (((int16_t)data[1] << 8) | data[0]) ; // Form signed 16-bit integer for each sample in FIFO
@@ -183,7 +181,6 @@ void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
 	writeByte(BNO055_ADDRESS, BNO055_GYRO_CONFIG_1, bno055_config.g_pwr_mode);
 	
 	for(ii = 0; ii < sample_count; ii++) {
-		if(ii%4 == 0) bsp_board_led_invert(BSP_BOARD_LED_1);
 		int16_t gyro_temp[3] = {0, 0, 0};
 		readBytes(BNO055_ADDRESS, BNO055_GYR_DATA_X_LSB, 6, &data[0]);  // Read the six raw data registers into data array
 		gyro_temp[0] = (int16_t) (((int16_t)data[1] << 8) | data[0]) ;  // Form signed 16-bit integer for each sample in FIFO
@@ -240,8 +237,6 @@ void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
 	
 //	nrf_delay_ms(1000);
 
-	bno055_config.accel_conf_done = true;
-	
 	NRF_LOG_DEBUG("Accel/Gyro Calibration done!\r\n");
 }
 
@@ -320,8 +315,6 @@ void bno055_calibrate_mag(float *dest1)
 
 //	nrf_delay_ms(1000);
 
-	bno055_config.mag_conf_done = true;
-	
 	NRF_LOG_DEBUG("Mag Calibration done!\r\n");
 }
 
@@ -475,7 +468,14 @@ static void imu_configure(void)
 
 static void imu_check_cal(void)
 {
+	// Select BNO055 config mode
+	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, CONFIGMODE);
+	nrf_delay_ms(25);
+	// Read calibration state
 	bno055_config.cal_state = readByte(BNO055_ADDRESS, BNO055_CALIB_STAT);
+	// Select BNO055 system operation mode
+	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, bno055_config.opr_mode);
+	nrf_delay_ms(25);
 }
 
 static void imu_initialize(void)
@@ -695,13 +695,13 @@ void imu_enable(void)
 	if(bno055_config.dev_en) {
 		imu_configure();
 		imu_check_cal();
-		NRF_LOG_DEBUG("System calibration: %d\n\r",
+		NRF_LOG_INFO("System calibration: %d\n\r",
 					((0xC0 & bno055_config.cal_state) >> 6));
-		NRF_LOG_DEBUG("Gyro   calibration: %d\n\r",
+		NRF_LOG_INFO("Gyro   calibration: %d\n\r",
 					((0x30 & bno055_config.cal_state) >> 4));
-		NRF_LOG_DEBUG("Accel  calibration: %d\n\r",
+		NRF_LOG_INFO("Accel  calibration: %d\n\r",
 					((0x0C & bno055_config.cal_state) >> 2));
-		NRF_LOG_DEBUG("Mag    calibration: %d\n\r",
+		NRF_LOG_INFO("Mag    calibration: %d\n\r",
 					((0x03 & bno055_config.cal_state) >> 0));
 		imu_initialize();
 	}
