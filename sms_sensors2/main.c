@@ -98,8 +98,8 @@
 // Batgauge/SAADC
 #define SMS_BATGAUGE_SAMPLE_RATE_MS		1000									/* Time between each ADC sample */
 #define ADC_SAMPLES_IN_BUFFER 			20										/* Number of ADC samples before a batgauge averaging is called */
-#define BAT_CONV_ADC0					156
-#define BAT_CONV_ADC100					186
+#define BAT_CONV_ADC0					151
+#define BAT_CONV_ADC100					165
 #define BAT_CONV_DELTA					(100/(BAT_CONV_ADC100-BAT_CONV_ADC0))
 #define BAT_CONV_OFFSET					(-BAT_CONV_DELTA * BAT_CONV_ADC0)
 // PWM
@@ -561,6 +561,7 @@ void batgauge_event_handler(nrf_drv_saadc_evt_t const * p_event)
 		}
 		float adc = (float)sum / ADC_SAMPLES_IN_BUFFER;
 		float level = (float)BAT_CONV_DELTA * adc + (float)BAT_CONV_OFFSET;
+		if(level > 100) level = 100;
 		m_app_state.batgauge.bat_level = (uint32_t)level;
 //		m_app_state.batgauge.bat_level = (uint32_t)adc;
 		NRF_LOG_DEBUG("Batgauge avg: %d (sum: %d)\n\r", m_app_state.batgauge.bat_level, sum);
