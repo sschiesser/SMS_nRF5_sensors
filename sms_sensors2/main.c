@@ -61,7 +61,7 @@
 #if (NRF_SD_BLE_API_VERSION == 3)
 	#define NRF_BLE_MAX_MTU_SIZE		GATT_MTU_SIZE_DEFAULT					/**< MTU size used in the softdevice enabling and to reply to a BLE_GATTS_EVT_EXCHANGE_MTU_REQUEST event. */
 #endif
-#define SMS_ADV_INTERVAL                64										/**< The advertising interval (in units of 0.625 ms; this value corresponds to 40 ms). */
+#define SMS_ADV_INTERVAL                320 //64										/**< The advertising interval (in units of 0.625 ms; this value corresponds to 40 ms). */
 #define SMS_ADV_TIMEOUT_IN_SECONDS      30										/**< The advertisement timeout value in seconds */
 #define SMS_FEATURE_NOT_SUPPORTED       BLE_GATT_STATUS_ATTERR_APP_BEGIN + 2	/**< Reply when unsupported features are requested. */
 #define MIN_CONN_INTERVAL               MSEC_TO_UNITS(15, UNIT_1_25_MS)			/**< Minimum acceptable connection interval (15 ms). */
@@ -106,43 +106,6 @@
 #define BAT_CONV_ADC100					165
 #define BAT_CONV_DELTA					(100/(BAT_CONV_ADC100-BAT_CONV_ADC0))
 #define BAT_CONV_OFFSET					(-BAT_CONV_DELTA * BAT_CONV_ADC0)
-// PWM
-//#define PWM_PERIOD_129HZ				250 // Duty cycle (PWM/off) = 50%
-//#define PWM_PERIOD_198HZ				200	// Duty cycle (PWM/off) = 45%
-//#define PWM_PERIOD_337HZ				150	// Duty cycle (PWM/off) = 39%
-//#define PWM_PERIOD_682HZ				100	// Duty cycle (PWM/off) = 32%
-//#define PWM_PERIOD_1057HZ				75	// Duty cycle (PWM/off) = 28%
-//#define SMS_PWM_PERIOD					PWM_PERIOD_129HZ
-//#define SMS_LED_ON_DUTY					(0.2 * SMS_PWM_PERIOD) // Duty cycle within PWM (affects LED brightness)
-//#define SMS_LED_OFF_DUTY				SMS_PWM_PERIOD - SMS_LED_ON_DUTY
-//#define SMS_LED_RUNNING_DUTY			2		// in %
-//#if(SMS_PWM_PERIOD == PWM_PERIOD_129HZ)
-//#define SMS_LED_BLINK_ULTRA_TICKS		6		// 100ms
-//#define SMS_LED_BLINK_FAST_TICKS		15		// 250ms
-//#define SMS_LED_BLINK_MEDIUM_TICKS		60		// 1s
-//#define SMS_LED_BLINK_SLOW_TICKS		240		// 4s
-//#elif(SMS_PWM_PERIOD == PWM_PERIOD_198HZ)
-//#define SMS_LED_BLINK_ULTRA_TICKS		9		// 100ms
-//#define SMS_LED_BLINK_FAST_TICKS		22		// 250ms
-//#define SMS_LED_BLINK_MEDIUM_TICKS		87		// 1s
-//#define SMS_LED_BLINK_SLOW_TICKS		348		// 4s
-//#elif(SMS_PWM_PERIOD == PWM_PERIOD_337HZ)
-//#define SMS_LED_BLINK_ULTRA_TICKS		12		// 100ms
-//#define SMS_LED_BLINK_FAST_TICKS		32		// 250ms
-//#define SMS_LED_BLINK_MEDIUM_TICKS		128		// 1s
-//#define SMS_LED_BLINK_SLOW_TICKS		512		// 4s
-//#elif(SMS_PWM_PERIOD == PWM_PERIOD_682HZ)
-//#define SMS_LED_BLINK_ULTRA_TICKS		21		// 100ms
-//#define SMS_LED_BLINK_FAST_TICKS		53		// 250ms
-//#define SMS_LED_BLINK_MEDIUM_TICKS		212		// 1s
-//#define SMS_LED_BLINK_SLOW_TICKS		848		// 4s
-//#elif(SMS_PWM_PERIOD == PWM_PERIOD_1057HZ)
-//#define SMS_LED_BLINK_ULTRA_TICKS		30		// 100ms
-//#define SMS_LED_BLINK_FAST_TICKS		74		// 250ms
-//#define SMS_LED_BLINK_MEDIUM_TICKS		294		// 1s
-//#define SMS_LED_BLINK_SLOW_TICKS		1176	// 4s
-//#endif
-
 
 
 
@@ -200,9 +163,6 @@ static uint32_t							m_adc_evt_counter;							/* ADC event counter (debug) */
 static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;	/* Handle of the current connection */
 ble_smss_t								m_smss_service;								/* Structure used to identify the SMS service */
 static ble_bas_t 						m_bas;                                   	/* Structure used to identify the battery service */
-// PWM
-//static low_power_pwm_t					low_power_pwm_conn;							/* PWM instance for LED_0 (connection) */
-//static low_power_pwm_t					low_power_pwm_data;							/* PWM instance for LED_1 (data) */
 
 
 // Timers
@@ -258,7 +218,8 @@ void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info)
 #ifndef DEBUG
 	NVIC_SystemReset();
 #else
-	while(1){};
+	NVIC_SystemReset();
+//	while(1){};
 #endif //DEBUG
 }
 
@@ -342,8 +303,6 @@ static void sms_switch_off(bool restart)
 	else if(m_app_state.sms == SMS_ADV_TIMEOUT) {
 		m_app_state.sms = SMS_OFF;
 	}
-//	low_power_pwm_stop(&low_power_pwm_conn);
-//	low_power_pwm_stop(&low_power_pwm_data);
 	app_timer_stop_all();
 	
 	leds_blink_off();	
@@ -630,6 +589,7 @@ static void led_conn_handler(void)
 					NULL);
 				ms58_config.dev_start = true;
 				bno055_config.dev_start = true;
+				m_app_state.batgauge.start = true;
 			}
 			break;
 			
@@ -1475,22 +1435,20 @@ int main(void)
 
 	spi_init();
 	twi_init();
-//	batgauge_init();
+	batgauge_init();
 	
 	// Initialize & configure peripherals
 	ms58_config.dev_start = false;
 	bno055_config.dev_start = false;
-	bno055_config.dev_calib_done = false;
-	m_app_state.batgauge.start = false;
-	m_app_state.batgauge.new_value = false;
+//	bno055_config.dev_calib_done = false;
+//	m_app_state.batgauge.start = false;
+//	m_app_state.batgauge.new_value = false;
 	
     err_code = app_button_enable();
     APP_ERROR_CHECK(err_code);
 	
 	// Start advertising
-//	m_app_state.sms = SMS_OFF;
 	m_app_state.sms = SMS_ADV_START;
-//	sensors_stop();
 
     // Enter main loop.
     for (;;)
