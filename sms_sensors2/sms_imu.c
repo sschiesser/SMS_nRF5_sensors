@@ -113,6 +113,8 @@ static int bno055_test(void)
 	}
 	
 	nrf_delay_ms(1000);
+	
+	return 0;
 }
 
 

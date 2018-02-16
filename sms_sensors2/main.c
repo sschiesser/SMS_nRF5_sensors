@@ -101,7 +101,7 @@
 #define APP_TIMER_OP_QUEUE_SIZE         8										/**< Size of timer operation queues. */
 // Batgauge/SAADC
 #define SMS_BATGAUGE_SAMPLE_RATE_MS		1000									/* Time between each ADC sample */
-#define ADC_SAMPLES_IN_BUFFER 			20										/* Number of ADC samples before a batgauge averaging is called */
+#define ADC_SAMPLES_IN_BUFFER 			16										/* Number of ADC samples before a batgauge averaging is called */
 #define BAT_CONV_ADC0					151
 #define BAT_CONV_ADC100					165
 #define BAT_CONV_DELTA					(100/(BAT_CONV_ADC100-BAT_CONV_ADC0))
@@ -502,10 +502,11 @@ void twi_event_handler(nrf_drv_twi_evt_t const * p_event, void * p_context)
  */
 void batgauge_event_handler(nrf_drv_saadc_evt_t const * p_event)
 {
+	ret_code_t err_code;
+
 	NRF_LOG_DEBUG("Batgauge event!!\n\r");
 	if(p_event->type == NRF_DRV_SAADC_EVT_DONE)
 	{
-		ret_code_t err_code;
 		err_code = nrf_drv_saadc_buffer_convert(p_event->data.done.p_buffer, ADC_SAMPLES_IN_BUFFER);
 		APP_ERROR_CHECK(err_code);
 		
@@ -589,7 +590,7 @@ static void led_conn_handler(void)
 					NULL);
 				ms58_config.dev_start = true;
 				bno055_config.dev_start = true;
-				m_app_state.batgauge.start = true;
+				if(m_app_state.batgauge.init_ok) m_app_state.batgauge.start = true;
 			}
 			break;
 			
@@ -993,12 +994,14 @@ static void batgauge_init(void)
 {
 	NRF_LOG_DEBUG("Preparing AIN0 as battery level input\r\n");
 	ret_code_t err_code;
-	nrf_saadc_channel_config_t channel_config =
-		NRF_DRV_SAADC_DEFAULT_CHANNEL_CONFIG_SE(NRF_SAADC_INPUT_AIN0);
+	nrf_drv_saadc_config_t saadc_config = NRF_DRV_SAADC_DEFAULT_CONFIG;
 	
-	err_code = nrf_drv_saadc_init(NULL, batgauge_event_handler);
+	err_code = nrf_drv_saadc_init(&saadc_config, batgauge_event_handler);
 	APP_ERROR_CHECK(err_code);
 	
+	nrf_saadc_channel_config_t channel_config =
+		NRF_DRV_SAADC_DEFAULT_CHANNEL_CONFIG_SE(NRF_SAADC_INPUT_AIN0);
+
 	err_code = nrf_drv_saadc_channel_init(0, &channel_config);
 	APP_ERROR_CHECK(err_code);
 	
@@ -1435,7 +1438,7 @@ int main(void)
 
 	spi_init();
 	twi_init();
-	batgauge_init();
+//	batgauge_init();
 	
 	// Initialize & configure peripherals
 	ms58_config.dev_start = false;
@@ -1501,16 +1504,6 @@ int main(void)
 			bno055_config.dev_start = false;
 		}
 		
-		// Start flag of the battery gauge (SAADC)
-		if(m_app_state.batgauge.start)
-		{
-			nrf_drv_saadc_sample();
-			app_timer_start(saadc_timer_id,
-							APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_BATGAUGE_SAMPLE_RATE_MS, UNIT_1_00_MS), 0),
-							NULL);
-			m_app_state.batgauge.enabled = true;
-			m_app_state.batgauge.start = false;
-		}
 
 		// BNO055 calibration has been done, polling can continue
 		if(bno055_config.dev_calib_done) {
@@ -1539,21 +1532,33 @@ int main(void)
 //			nrf_gpio_pin_write(DBG2_PIN, 0);
 		}
 		
-		// New value flag of the battery gauge... sends notification automatically
-		if(m_app_state.batgauge.new_value)
-		{
-			m_app_state.batgauge.new_value = false;
-			uint32_t err_code;
-			err_code = ble_bas_battery_level_update(&m_bas, (uint8_t)m_app_state.batgauge.bat_level);
-			if((err_code != NRF_SUCCESS) &&							// 0x0000
-				(err_code != NRF_ERROR_INVALID_STATE) &&			// 0x0008
-				(err_code != BLE_ERROR_INVALID_CONN_HANDLE) &&		// 0x3002
-				(err_code != BLE_ERROR_NO_TX_PACKETS) &&			// 0x3004
-				(err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING))		// 0x3401
-			{
-				APP_ERROR_HANDLER(err_code);
-			}
-		}
+		
+//		// Start flag of the battery gauge (SAADC)
+//		if(m_app_state.batgauge.start)
+//		{
+//			nrf_drv_saadc_sample();
+//			app_timer_start(saadc_timer_id,
+//							APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_BATGAUGE_SAMPLE_RATE_MS, UNIT_1_00_MS), 0),
+//							NULL);
+//			m_app_state.batgauge.enabled = true;
+//			m_app_state.batgauge.start = false;
+//		}
+
+//		// New value flag of the battery gauge... sends notification automatically
+//		if(m_app_state.batgauge.new_value)
+//		{
+//			m_app_state.batgauge.new_value = false;
+//			uint32_t err_code;
+//			err_code = ble_bas_battery_level_update(&m_bas, (uint8_t)m_app_state.batgauge.bat_level);
+//			if((err_code != NRF_SUCCESS) &&							// 0x0000
+//				(err_code != NRF_ERROR_INVALID_STATE) &&			// 0x0008
+//				(err_code != BLE_ERROR_INVALID_CONN_HANDLE) &&		// 0x3002
+//				(err_code != BLE_ERROR_NO_TX_PACKETS) &&			// 0x3004
+//				(err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING))		// 0x3401
+//			{
+//				APP_ERROR_HANDLER(err_code);
+//			}
+//		}
 		
 		// RTS (ready-to-send) for ms58
 		if((ms58_interrupt.enabled) && (ms58_interrupt.rts))
