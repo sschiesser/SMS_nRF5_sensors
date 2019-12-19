@@ -7,7 +7,7 @@
 #define SMS_PRESSURE_TEMP_LEN		4
 #define SMS_PRESSURE_CHAR_LEN		(SMS_PRESSURE_PRESS_LEN + SMS_PRESSURE_TEMP_LEN)
 
-#define SMS_PRESSURE_POLL_MS		49
+#define SMS_PRESSURE_POLL_MS		33 // !! Pressure sensor need 2x more time to send since it has to measure temp first
 
 #define SMS_PRESSURE_SUPPLY_PIN		15
 #define SMS_PRESSURE_SW_ON			1
