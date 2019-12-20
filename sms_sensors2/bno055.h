@@ -284,9 +284,7 @@ typedef struct {
 	f2b_t mag[3];
 	f2b_t temp;
 	f2b_t quat[4];
-	f2b_t yaw;
-	f2b_t roll;
-	f2b_t pitch;
+	f2b_t euler[3];
 	f2b_t lia[3];
 	f2b_t grv[3];
 	uint32_t ts_us;

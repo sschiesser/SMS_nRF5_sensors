@@ -441,9 +441,9 @@ static void imu_startup(void)
 		bno055_output.quat[i].val = 0;
 	}
 	bno055_output.temp.val = 0;
-	bno055_output.yaw.val = 0;
-	bno055_output.roll.val = 0;
-	bno055_output.pitch.val = 0;
+	bno055_output.euler[0].val = 0;
+	bno055_output.euler[2].val = 0;
+	bno055_output.euler[1].val = 0;
 	bno055_output.ts_us = 0;
 	
 	// Reset device & check which component is present
@@ -622,9 +622,9 @@ void imu_poll_data(uint8_t data_msk)
 		roll = (float)data[1]/16.;  
 		pitch = (float)data[2]/16.;   
 		// Fill the sensor output table for later sending
-		bno055_output.yaw.val = yaw;
-		bno055_output.roll.val = roll;
-		bno055_output.pitch.val = pitch;
+		bno055_output.euler[0].val = yaw;
+		bno055_output.euler[1].val = pitch;
+		bno055_output.euler[2].val = roll;
 		NRF_LOG_DEBUG("Raw euler angles (10^6): %ld, %ld, %ld\n\r",
 				(int32_t)(yaw*1000000.),
 				(int32_t)(roll*1000000.),

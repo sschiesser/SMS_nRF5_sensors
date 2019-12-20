@@ -1528,7 +1528,7 @@ int main(void)
 //			nrf_gpio_pin_write(DBG2_PIN, 1);
 //			NRF_LOG_INFO("BNO055 interrupt\n\r");
 			bno055_interrupt.new_value = false;
-			imu_poll_data(SMS_IMU_DATAMSK_QUAT);
+			imu_poll_data(SMS_IMU_DATAMSK_EULER);
 //			nrf_gpio_pin_write(DBG2_PIN, 0);
 		}
 		
@@ -1583,7 +1583,10 @@ int main(void)
 		{
 			bno055_interrupt.rts = false;
 			uint32_t * tosend;
-			tosend = (uint32_t*)&bno055_output.quat[0].b;
+			// Quaternions option
+//			tosend = (uint32_t*)&bno055_output.quat[0].b;
+			// Euler option
+			tosend = (uint32_t*)&bno055_output.euler[0].b;
 			err_code = ble_smss_on_imu_value(&m_smss_service, tosend);
 			if((err_code != NRF_SUCCESS) &&							// 0x0000
 				(err_code != NRF_ERROR_INVALID_STATE) &&			// 0x0008
