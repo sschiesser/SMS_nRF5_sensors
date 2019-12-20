@@ -1416,8 +1416,8 @@ int main(void)
     ret_code_t err_code;
     
     // Setup log
-//	err_code = NRF_LOG_INIT(NULL);
-//	APP_ERROR_CHECK(err_code);
+	err_code = NRF_LOG_INIT(NULL);
+	APP_ERROR_CHECK(err_code);
 //	uint8_t fw_msb, fw_lsb;
 //	fw_msb = ((SMS_VERSION_ID & 0xFF) > 8);
 //	fw_lsb = (SMS_VERSION_ID & 0x0F);
