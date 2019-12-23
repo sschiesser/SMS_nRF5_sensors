@@ -118,25 +118,6 @@ static int bno055_test(void)
 }
 
 
-
-
-static void bno055_init_config_values(void)
-{
-	bno055_config.g_pwr_mode = NormalG;	// Gyro power mode
-	bno055_config.g_scale = GFS_250DPS;	// Gyro full scale
-	bno055_config.g_bw = GBW_523Hz;		// Gyro bandwidth
-	bno055_config.a_pwr_mode = NormalA;	// Accel power mode
-	bno055_config.a_scale = AFS_2G;		// Accel full scale
-	bno055_config.a_bw = ABW_1000Hz;	// Accel bandwidth, accel sample rate divided by ABW_divx
-	bno055_config.m_pwr_mode = Normal;	// Select magnetometer power mode
-	bno055_config.m_op_mode = Regular;	// Select magnetometer perfomance mode
-	bno055_config.m_odr = MODR_30Hz;	// Select magnetometer ODR when in BNO055 bypass mode
-	bno055_config.pwr_mode = Normalpwr;	// Select BNO055 power mode
-	bno055_config.opr_mode = NDOF;		// specify operation mode for sensors
-	bno055_config.dev_calib_done = false;
-	NRF_LOG_DEBUG("BNO055 config values initialized\r\n");
-}
-
 void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
 {
 	uint8_t data[6]; // data array to hold accelerometer and gyro x, y, z, data
@@ -421,9 +402,9 @@ static void read_grv_data(int16_t * destination)
 }
 
 
-static void imu_startup(void)
+static void imu_init_values(void)
 {
-	// Initialize all bno055 struct values
+	// Reset all IMU output values
 	bno055_config.init_ok = true;
 	bno055_config.dev_en = false;
 	bno055_config.comp_mask = 0x0F;
@@ -439,31 +420,98 @@ static void imu_startup(void)
 	}
 	for(uint8_t i = 0; i < 4; i++) {
 		bno055_output.quat[i].val = 0;
+		bno055_output.euler[i].val = 0;
 	}
 	bno055_output.temp.val = 0;
-	bno055_output.euler[0].val = 0;
-	bno055_output.euler[2].val = 0;
-	bno055_output.euler[1].val = 0;
 	bno055_output.ts_us = 0;
 	
+	// Set all IMU configuration values
+	bno055_config.g_pwr_mode = NormalG;	// Gyro power mode
+	bno055_config.g_scale = GFS_250DPS;	// Gyro full scale
+	bno055_config.g_bw = GBW_523Hz;		// Gyro bandwidth
+	bno055_config.a_pwr_mode = NormalA;	// Accel power mode
+	bno055_config.a_scale = AFS_2G;		// Accel full scale
+	bno055_config.a_bw = ABW_1000Hz;	// Accel bandwidth, accel sample rate divided by ABW_divx
+	bno055_config.m_pwr_mode = Normal;	// Select magnetometer power mode
+	bno055_config.m_op_mode = Regular;	// Select magnetometer perfomance mode
+	bno055_config.m_odr = MODR_30Hz;	// Select magnetometer ODR when in BNO055 bypass mode
+	bno055_config.pwr_mode = Normalpwr;	// Select BNO055 power mode
+	bno055_config.opr_mode = NDOF;		// specify operation mode for sensors
+	bno055_config.dev_calib_done = false;
+}
+
+static void imu_init_device(void)
+{
 	// Reset device & check which component is present
+	NRF_LOG_DEBUG("Device reset!\n\r");
 	bno055_reset();
 	bno055_config.comp_mask = bno055_check();
-	if(bno055_config.comp_mask == 0x0F) {
-		bno055_config.init_ok = false;
-		bno055_config.dev_en = false;
-	}
-	else {
+	if(bno055_config.comp_mask == 0) {
+		NRF_LOG_DEBUG("BNO055 working well\n\r");
 		bno055_config.init_ok = true;
 		bno055_config.dev_en = true;
 	}
+	else {
+		if(bno055_config.comp_mask == 0x0F) {
+			NRF_LOG_DEBUG("BNO055 not working\n\r");
+		}
+		else if(bno055_config.comp_mask == 0x07) {
+			NRF_LOG_DEBUG("BNO055 accelerometer not working.\n\r");
+		}
+		else if(bno055_config.comp_mask == 0x03) {
+			NRF_LOG_DEBUG("BNO055 gyroscope not working.\n\r");
+		}
+		else if(bno055_config.comp_mask == 0x01){
+			NRF_LOG_DEBUG("BNO055 magnetometer not working.\n\r");
+		}
+		bno055_config.init_ok = true;
+		bno055_config.dev_en = true;
+		bno055_test();
+	}
+
+	// Proceed to self-test
+	bno055_test();
+	
+	// Write configuration values
+	// Select BNO055 config mode
+	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, CONFIGMODE );
+	nrf_delay_ms(25);
+	// Select page 1 to configure sensors
+	writeByte(BNO055_ADDRESS, BNO055_PAGE_ID, 0x01);
+	// Configure ACC
+	writeByte(BNO055_ADDRESS, BNO055_ACC_CONFIG, bno055_config.a_pwr_mode << 5 | bno055_config.a_bw << 2 | bno055_config.a_scale);
+	// Configure GYR
+	writeByte(BNO055_ADDRESS, BNO055_GYRO_CONFIG_0, bno055_config.g_bw << 3 | bno055_config.g_scale);
+	writeByte(BNO055_ADDRESS, BNO055_GYRO_CONFIG_1, bno055_config.g_pwr_mode);
+	// Configure MAG
+	writeByte(BNO055_ADDRESS, BNO055_MAG_CONFIG, bno055_config.m_pwr_mode << 5 | bno055_config.m_op_mode << 3 | bno055_config.m_odr);
+
+	// Select page 0 to read sensors & configure orientation
+	writeByte(BNO055_ADDRESS, BNO055_PAGE_ID, 0x00);
+	
+	// Set BNO055 axis configuration P3 (0x21 / 0x02)
+	writeByte(BNO055_ADDRESS, BNO055_AXIS_MAP_CONFIG, 0x21);
+	writeByte(BNO055_ADDRESS, BNO055_AXIS_MAP_SIGN, 0x02);
+
+	// Select BNO055 gyro temperature source 
+	writeByte(BNO055_ADDRESS, BNO055_TEMP_SOURCE, 0x01 );
+
+	// Select BNO055 sensor units (temperature in degrees C, rate in dps, accel in mg)
+	writeByte(BNO055_ADDRESS, BNO055_UNIT_SEL, 0x01 );
+	
+	// Select BNO055 system power mode
+	writeByte(BNO055_ADDRESS, BNO055_PWR_MODE, bno055_config.pwr_mode);
+
+	// Select BNO055 NDOF operation mode
+	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, NDOF);
+	nrf_delay_ms(25);
+
 }
 
 
-static void imu_configure(void)
+static void imu_calibrate(void)
 {
-	bno055_test();
-	bno055_init_config_values();
+	NRF_LOG_DEBUG("Here a calibration will take place!\n\r");
 //	bno055_calibrate_accel_gyro(bno055_config.accel_bias,
 //								bno055_config.gyro_bias);
 //	bno055_calibrate_mag(bno055_config.mag_bias);
@@ -482,59 +530,6 @@ void imu_check_cal(void)
 //	nrf_delay_ms(25);
 }
 
-static void imu_initialize(void)
-{
-	// Select BNO055 config mode
-	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, CONFIGMODE );
-	nrf_delay_ms(25);
-	// Select page 1 to configure sensors
-	writeByte(BNO055_ADDRESS, BNO055_PAGE_ID, 0x01);
-	// Configure ACC
-	writeByte(BNO055_ADDRESS, BNO055_ACC_CONFIG, bno055_config.a_pwr_mode << 5 | bno055_config.a_bw << 2 | bno055_config.a_scale);
-	// Configure GYR
-	writeByte(BNO055_ADDRESS, BNO055_GYRO_CONFIG_0, bno055_config.g_bw << 3 | bno055_config.g_scale);
-	writeByte(BNO055_ADDRESS, BNO055_GYRO_CONFIG_1, bno055_config.g_pwr_mode);
-	// Configure MAG
-	writeByte(BNO055_ADDRESS, BNO055_MAG_CONFIG, bno055_config.m_pwr_mode << 5 | bno055_config.m_op_mode << 3 | bno055_config.m_odr);
-
-//	// Configure interrupt settings...
-//	// Accelerometer any motion interrupt (4:2)
-//	writeByte(BNO055_ADDRESS, BNO055_ACC_INT_SETTINGS, 0x1C);
-//	writeByte(BNO055_ADDRESS, BNO055_ACC_AM_THRES, 0x00);
-//	// Gyroscope any motion interrupt (
-//	writeByte(BNO055_ADDRESS, BNO055_GYR_INT_SETTINGS, 0x47);
-//	writeByte(BNO055_ADDRESS, BNO055_GYR_AM_THRESH, 0x00);
-//	writeByte(BNO055_ADDRESS, BNO055_GYR_AM_SET, 0x00);
-//	// Set interrupt mask (6 -> ACC_AM, 2 -> GYR_AM)
-//	writeByte(BNO055_ADDRESS, BNO055_INT_MSK, 0x44);
-//	// Enable interrupt
-//	writeByte(BNO055_ADDRESS, BNO055_INT_EN, 0x44);
-	
-	// Select page 0 to read sensors & configure orientation
-	writeByte(BNO055_ADDRESS, BNO055_PAGE_ID, 0x00);
-	
-	// Set BNO055 axis configuration P3 (0x21 / 0x02)
-	writeByte(BNO055_ADDRESS, BNO055_AXIS_MAP_CONFIG, 0x21);
-	writeByte(BNO055_ADDRESS, BNO055_AXIS_MAP_SIGN, 0x02);
-
-	// Select BNO055 gyro temperature source 
-	writeByte(BNO055_ADDRESS, BNO055_TEMP_SOURCE, 0x01 );
-
-	// Select BNO055 sensor units (temperature in degrees C, rate in dps, accel in mg)
-	writeByte(BNO055_ADDRESS, BNO055_UNIT_SEL, 0x01 );
-	
-	// Select BNO055 system power mode
-	writeByte(BNO055_ADDRESS, BNO055_PWR_MODE, bno055_config.pwr_mode);
-
-	// Select BNO055 system operation mode
-	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, bno055_config.opr_mode);
-	nrf_delay_ms(25);
-}
-
-//static void bno055_int_reset(void)
-//{
-//	writeByte(BNO055_ADDRESS, BNO055_SYS_TRIGGER, 0x40);
-//}
 
 
 void imu_poll_data(uint8_t data_msk)
@@ -696,11 +691,18 @@ void imu_poll_data(uint8_t data_msk)
 
 void imu_enable(void)
 {
-//	NRF_LOG_INFO("Enabling IMU...\n\r");
-	imu_startup();
+	// Switching on IMU supply
+	nrf_gpio_pin_write(SMS_IMU_SUPPLY_PIN, SMS_IMU_SW_ON);
+	// Initialize all IMU values
+	imu_init_values();
+	// Initialize IMU hardware
+	NRF_LOG_DEBUG("Init device\n\r");
+	imu_init_device();
+	
 	NRF_LOG_INFO("BNO055 enabled? %d\r\n\n", bno055_config.dev_en);
 	if(bno055_config.dev_en) {
-		imu_configure();
+		// Calibrate
+		imu_calibrate();
 		imu_check_cal();
 		NRF_LOG_INFO("System calibration: %d\n\r",
 					((0xC0 & bno055_config.cal_state) >> 6));
@@ -710,6 +712,5 @@ void imu_enable(void)
 					((0x0C & bno055_config.cal_state) >> 2));
 		NRF_LOG_INFO("Mag    calibration: %d\n\r",
 					((0x03 & bno055_config.cal_state) >> 0));
-		imu_initialize();
 	}
 }

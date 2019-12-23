@@ -1422,7 +1422,7 @@ int main(void)
 //	uint8_t fw_msb, fw_lsb;
 //	fw_msb = ((SMS_VERSION_ID & 0xFF) > 8);
 //	fw_lsb = (SMS_VERSION_ID & 0x0F);
-//	NRF_LOG_INFO("===============================\n\r");
+	NRF_LOG_INFO("===============================\n\r");
 //	NRF_LOG_INFO("SMS sensors firmware v%d.%d, r%03d\n\r", fw_msb, fw_lsb, SMS_RELEASE_ID);
 //	NRF_LOG_INFO("===============================\n\n\r");
 
@@ -1452,7 +1452,8 @@ int main(void)
     APP_ERROR_CHECK(err_code);
 	
 	// Start advertising
-	m_app_state.sms = SMS_ADV_START;
+//	m_app_state.sms = SMS_ADV_START;
+	m_app_state.sms = SMS_CALIBRATING;
 
     // Enter main loop.
     for (;;)
@@ -1472,6 +1473,11 @@ int main(void)
 				app_timer_start(led_conn_timer_id,
 					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_LED_BLINK_ULTRA_MS, UNIT_1_00_MS), 0),
 					NULL);
+				break;
+			
+			case SMS_CALIBRATING:
+				NRF_LOG_DEBUG("Starting IMU directly...\n\r");
+				bno055_config.dev_start = true;
 				break;
 			
 			default:
@@ -1495,8 +1501,9 @@ int main(void)
 		// Start flag of the IMU (BNO055) sensor
 		if(bno055_config.dev_start)
 		{
-			nrf_gpio_pin_write(SMS_IMU_SUPPLY_PIN, SMS_IMU_SW_ON);
+//			nrf_gpio_pin_write(SMS_IMU_SUPPLY_PIN, SMS_IMU_SW_ON);
 			imu_enable();
+			bno055_config.dev_calib_done = true;
 			bno055_config.dev_en = true;
 			app_timer_start(imu_poll_int_id,
 							APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_IMU_POLL_MS, UNIT_1_00_MS), 0),
