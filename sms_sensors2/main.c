@@ -164,6 +164,7 @@ static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;
 ble_smss_t								m_smss_service;								/* Structure used to identify the SMS service */
 static ble_bas_t 						m_bas;                                   	/* Structure used to identify the battery service */
 
+extern bool								ble_smss_sendquat;
 
 // Timers
 APP_TIMER_DEF(pressure_poll_int_id);
@@ -588,7 +589,7 @@ static void led_conn_handler(void)
 				app_timer_start(led_data_timer_id,
 					APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_LED_BLINK_ULTRA_MS, UNIT_1_00_MS), 0),
 					NULL);
-				ms58_config.dev_start = true;
+				ms58_config.dev_start = false;
 				bno055_config.dev_start = true;
 				if(m_app_state.batgauge.init_ok) m_app_state.batgauge.start = true;
 			}
@@ -1528,7 +1529,12 @@ int main(void)
 //			nrf_gpio_pin_write(DBG2_PIN, 1);
 //			NRF_LOG_INFO("BNO055 interrupt\n\r");
 			bno055_interrupt.new_value = false;
-			imu_poll_data(SMS_IMU_DATAMSK_EULER);
+			if(ble_smss_sendquat) {
+				imu_poll_data(SMS_IMU_DATAMSK_QUAT);
+			}
+			else {
+				imu_poll_data(SMS_IMU_DATAMSK_EULER);
+			}
 //			nrf_gpio_pin_write(DBG2_PIN, 0);
 		}
 		
@@ -1583,10 +1589,10 @@ int main(void)
 		{
 			bno055_interrupt.rts = false;
 			uint32_t * tosend;
-			// Quaternions option
-//			tosend = (uint32_t*)&bno055_output.quat[0].b;
-			// Euler option
-			tosend = (uint32_t*)&bno055_output.euler[0].b;
+
+			tosend = (ble_smss_sendquat ? (uint32_t*)&bno055_output.quat[0].b : (uint32_t*)&bno055_output.euler[0].b);
+			ble_smss_sendquat = !ble_smss_sendquat;
+			
 			err_code = ble_smss_on_imu_value(&m_smss_service, tosend);
 			if((err_code != NRF_SUCCESS) &&							// 0x0000
 				(err_code != NRF_ERROR_INVALID_STATE) &&			// 0x0008

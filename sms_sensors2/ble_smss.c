@@ -13,6 +13,7 @@
 #include "sms_pressure.h"
 #include "sms_imu.h"
 
+bool ble_smss_sendquat = true;
 
 /**@brief Function for handling the Connect event.
  *

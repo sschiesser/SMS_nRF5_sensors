@@ -625,6 +625,9 @@ void imu_poll_data(uint8_t data_msk)
 		bno055_output.euler[0].val = yaw;
 		bno055_output.euler[1].val = pitch;
 		bno055_output.euler[2].val = roll;
+		for(int i = 0; i < 4; i++) {
+			bno055_output.euler[3].b[i] = 0xff;
+		}
 		NRF_LOG_DEBUG("Raw euler angles (10^6): %ld, %ld, %ld\n\r",
 				(int32_t)(yaw*1000000.),
 				(int32_t)(roll*1000000.),
