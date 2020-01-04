@@ -124,8 +124,8 @@ void bno055_calibrate_accel_gyro(float *dest1, float *dest2)
 	uint16_t ii = 0, sample_count = 0;
 	int32_t gyro_bias[3]  = {0, 0, 0}, accel_bias[3] = {0, 0, 0};
 
-//	NRF_LOG_INFO("Accel/Gyro Calibration: Put device on a level surface and keep motionless! Wait......");
-//	nrf_delay_ms(4000);
+	NRF_LOG_INFO("Accel/Gyro Calibration: Put device on a level surface and keep motionless! Wait......");
+	nrf_delay_ms(4000);
   
 	// Select page 0 to read sensors
 	writeByte(BNO055_ADDRESS, BNO055_PAGE_ID, 0x00);
@@ -232,8 +232,8 @@ void bno055_calibrate_mag(float *dest1)
 	int32_t mag_bias[3] = {0, 0, 0};
 	int16_t mag_max[3] = {0, 0, 0}, mag_min[3] = {0, 0, 0};
 
-//	NRF_LOG_INFO("Mag Calibration: Wave device in a figure eight until done!");
-//	nrf_delay_ms(4000);
+	NRF_LOG_INFO("Mag Calibration: Wave device in a figure eight until done!");
+	nrf_delay_ms(4000);
 
 	// Select page 0 to read sensors
 	writeByte(BNO055_ADDRESS, BNO055_PAGE_ID, 0x00);
@@ -263,9 +263,9 @@ void bno055_calibrate_mag(float *dest1)
 		nrf_delay_ms(105);  // at 10 Hz ODR, new mag data is available every 100 ms
 	}
 
-	NRF_LOG_DEBUG("mag x min/max: %d, %d\r\n", mag_min[0], mag_max[0]);
-	NRF_LOG_DEBUG("mag y min/max: %d, %d\r\n", mag_min[1], mag_max[1]);
-	NRF_LOG_DEBUG("mag z min/max: %d, %d\r\n", mag_min[2], mag_max[2]);
+//	NRF_LOG_DEBUG("mag x min/max: %d, %d\r\n", mag_min[0], mag_max[0]);
+//	NRF_LOG_DEBUG("mag y min/max: %d, %d\r\n", mag_min[1], mag_max[1]);
+//	NRF_LOG_DEBUG("mag z min/max: %d, %d\r\n", mag_min[2], mag_max[2]);
 	
 	mag_bias[0]  = (mag_max[0] + mag_min[0])/2;  // get average x mag bias in counts
 	mag_bias[1]  = (mag_max[1] + mag_min[1])/2;  // get average y mag bias in counts
@@ -445,7 +445,9 @@ static void imu_init_device(void)
 	// Reset device & check which component is present
 	NRF_LOG_DEBUG("Device reset!\n\r");
 	bno055_reset();
+	NRF_LOG_DEBUG("Read WHO AM I registers\n\r");
 	bno055_config.comp_mask = bno055_check();
+	
 	if(bno055_config.comp_mask == 0) {
 		NRF_LOG_DEBUG("BNO055 working well\n\r");
 		bno055_config.init_ok = true;
@@ -466,55 +468,76 @@ static void imu_init_device(void)
 		}
 		bno055_config.init_ok = true;
 		bno055_config.dev_en = true;
-		bno055_test();
+//		bno055_test();
 	}
 
-	// Proceed to self-test
+	// Read firmware infos & proceed to self-test
 	bno055_test();
 	
-	// Write configuration values
-	// Select BNO055 config mode
-	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, CONFIGMODE );
-	nrf_delay_ms(25);
-	// Select page 1 to configure sensors
-	writeByte(BNO055_ADDRESS, BNO055_PAGE_ID, 0x01);
-	// Configure ACC
-	writeByte(BNO055_ADDRESS, BNO055_ACC_CONFIG, bno055_config.a_pwr_mode << 5 | bno055_config.a_bw << 2 | bno055_config.a_scale);
-	// Configure GYR
-	writeByte(BNO055_ADDRESS, BNO055_GYRO_CONFIG_0, bno055_config.g_bw << 3 | bno055_config.g_scale);
-	writeByte(BNO055_ADDRESS, BNO055_GYRO_CONFIG_1, bno055_config.g_pwr_mode);
-	// Configure MAG
-	writeByte(BNO055_ADDRESS, BNO055_MAG_CONFIG, bno055_config.m_pwr_mode << 5 | bno055_config.m_op_mode << 3 | bno055_config.m_odr);
+//	// Write configuration values
+//	// Select BNO055 config mode
+//	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, CONFIGMODE );
+//	nrf_delay_ms(25);
+//	// Select page 1 to configure sensors
+//	writeByte(BNO055_ADDRESS, BNO055_PAGE_ID, 0x01);
+//	// Configure ACC
+//	writeByte(BNO055_ADDRESS, BNO055_ACC_CONFIG, bno055_config.a_pwr_mode << 5 | bno055_config.a_bw << 2 | bno055_config.a_scale);
+//	// Configure GYR
+//	writeByte(BNO055_ADDRESS, BNO055_GYRO_CONFIG_0, bno055_config.g_bw << 3 | bno055_config.g_scale);
+//	writeByte(BNO055_ADDRESS, BNO055_GYRO_CONFIG_1, bno055_config.g_pwr_mode);
+//	// Configure MAG
+//	writeByte(BNO055_ADDRESS, BNO055_MAG_CONFIG, bno055_config.m_pwr_mode << 5 | bno055_config.m_op_mode << 3 | bno055_config.m_odr);
 
-	// Select page 0 to read sensors & configure orientation
-	writeByte(BNO055_ADDRESS, BNO055_PAGE_ID, 0x00);
-	
-	// Set BNO055 axis configuration P3 (0x21 / 0x02)
-	writeByte(BNO055_ADDRESS, BNO055_AXIS_MAP_CONFIG, 0x21);
-	writeByte(BNO055_ADDRESS, BNO055_AXIS_MAP_SIGN, 0x02);
+//	// Select page 0 to read sensors & configure orientation
+//	writeByte(BNO055_ADDRESS, BNO055_PAGE_ID, 0x00);
+//	
+//	// Set BNO055 axis configuration P3 (0x21 / 0x02)
+//	writeByte(BNO055_ADDRESS, BNO055_AXIS_MAP_CONFIG, 0x21);
+//	writeByte(BNO055_ADDRESS, BNO055_AXIS_MAP_SIGN, 0x02);
 
-	// Select BNO055 gyro temperature source 
-	writeByte(BNO055_ADDRESS, BNO055_TEMP_SOURCE, 0x01 );
+//	// Select BNO055 gyro temperature source 
+//	writeByte(BNO055_ADDRESS, BNO055_TEMP_SOURCE, 0x01 );
 
-	// Select BNO055 sensor units (temperature in degrees C, rate in dps, accel in mg)
-	writeByte(BNO055_ADDRESS, BNO055_UNIT_SEL, 0x01 );
-	
-	// Select BNO055 system power mode
-	writeByte(BNO055_ADDRESS, BNO055_PWR_MODE, bno055_config.pwr_mode);
+//	// Select BNO055 sensor units (temperature in degrees C, rate in dps, accel in mg)
+//	writeByte(BNO055_ADDRESS, BNO055_UNIT_SEL, 0x01 );
+//	
+//	// Select BNO055 system power mode
+//	writeByte(BNO055_ADDRESS, BNO055_PWR_MODE, bno055_config.pwr_mode);
 
-	// Select BNO055 NDOF operation mode
-	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, NDOF);
-	nrf_delay_ms(25);
+//	// Select BNO055 NDOF operation mode
+//	writeByte(BNO055_ADDRESS, BNO055_OPR_MODE, NDOF);
+//	nrf_delay_ms(25);
 
 }
 
 
 static void imu_calibrate(void)
 {
-	NRF_LOG_DEBUG("Here a calibration will take place!\n\r");
-//	bno055_calibrate_accel_gyro(bno055_config.accel_bias,
-//								bno055_config.gyro_bias);
-//	bno055_calibrate_mag(bno055_config.mag_bias);
+	NRF_LOG_DEBUG("Calibrating BNO055!\n\r");
+	
+	bno055_calibrate_accel_gyro(bno055_config.accel_bias, bno055_config.gyro_bias);
+	NRF_LOG_INFO("Average accelerometer biases (mg). X: " NRF_LOG_FLOAT_MARKER 
+				", Y: " NRF_LOG_FLOAT_MARKER 
+				", Z: " NRF_LOG_FLOAT_MARKER "\n\r", 
+				NRF_LOG_FLOAT(bno055_config.accel_bias[0]), 
+				NRF_LOG_FLOAT(bno055_config.accel_bias[1]), 
+				NRF_LOG_FLOAT(bno055_config.accel_bias[2]));
+	NRF_LOG_INFO("Average gyroscope biases (dps). X: " NRF_LOG_FLOAT_MARKER 
+				", Y: " NRF_LOG_FLOAT_MARKER 
+				", Z: " NRF_LOG_FLOAT_MARKER "\n\r", 
+				NRF_LOG_FLOAT(bno055_config.gyro_bias[0]), 
+				NRF_LOG_FLOAT(bno055_config.gyro_bias[1]), 
+				NRF_LOG_FLOAT(bno055_config.gyro_bias[2]));
+
+	nrf_delay_ms(1000);
+	
+	bno055_calibrate_mag(bno055_config.mag_bias);
+	NRF_LOG_INFO("Average magnometer biases (mG): X: " NRF_LOG_FLOAT_MARKER
+				", Y: " NRF_LOG_FLOAT_MARKER
+				", Z: " NRF_LOG_FLOAT_MARKER "\n\r",
+				NRF_LOG_FLOAT(bno055_config.mag_bias[0]),
+				NRF_LOG_FLOAT(bno055_config.mag_bias[1]),
+				NRF_LOG_FLOAT(bno055_config.mag_bias[2]));
 }
 
 
