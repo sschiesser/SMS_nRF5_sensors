@@ -48,6 +48,7 @@
 
 #include "sms_pressure.h"
 #include "sms_imu.h"
+#include "quaternion_filter.h"
 
 #define NRF_LOG_MODULE_NAME "APP"
 #include "nrf_log.h"
@@ -166,6 +167,8 @@ static ble_bas_t 						m_bas;                                   	/* Structure us
 
 extern bool								ble_smss_sendquat;
 
+// Counter
+const nrf_drv_timer_t US_COUNTER = NRF_DRV_TIMER_INSTANCE(2);
 // Timers
 APP_TIMER_DEF(pressure_poll_int_id);
 APP_TIMER_DEF(imu_poll_int_id);
@@ -349,6 +352,9 @@ static void imu_poll_int_handler(void * p_context)
 	bno055_interrupt.new_value = true;
 }
 
+static void counter_handler(nrf_timer_event_t type, void* p_context)
+{
+}
 /**@brief Button pressed timeout handler.
  *
  * @details	1. check if and which button is pressed
@@ -1076,7 +1082,25 @@ void twi_init(void)
 }
 
 // Drivers
-/**@brief Function for the Timer initialization.
+/**@brief Function for the driver timer initialization.
+ *
+ * @details Create a microsecond counter module.
+ */
+static void us_counter_init(void)
+{
+	uint32_t time_ms = 10000;
+	uint32_t time_ticks;
+	uint32_t err_code = NRF_SUCCESS;
+	
+	nrf_drv_timer_config_t timer_cfg = NRF_DRV_TIMER_DEFAULT_CONFIG;
+	err_code = nrf_drv_timer_init(&US_COUNTER, &timer_cfg, counter_handler);
+	APP_ERROR_CHECK(err_code);
+	
+	time_ticks = nrf_drv_timer_ms_to_ticks(&US_COUNTER, time_ms);
+	nrf_drv_timer_compare(&US_COUNTER, NRF_TIMER_CC_CHANNEL2, time_ticks, false);
+	nrf_drv_timer_enable(&US_COUNTER);
+}
+/**@brief Function for the app timer initialization.
  *
  * @details Create the timer modules. BUT DON'T START!
  */
@@ -1414,6 +1438,8 @@ void button_press_timer_start(void)
  */
 int main(void)
 {
+	uint32_t now, last_update;
+	float delta_t;
     ret_code_t err_code;
     
     // Setup log
@@ -1427,6 +1453,7 @@ int main(void)
 //	NRF_LOG_INFO("===============================\n\n\r");
 
 	// Initialize hardware & services
+	us_counter_init();
     timers_init();
     leds_init();
 	supplies_init();
@@ -1504,11 +1531,14 @@ int main(void)
 //			nrf_gpio_pin_write(SMS_IMU_SUPPLY_PIN, SMS_IMU_SW_ON);
 			imu_enable();
 			bno055_config.dev_calib_done = true;
-			bno055_config.dev_en = true;
-			app_timer_start(imu_poll_int_id,
-							APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_IMU_POLL_MS, UNIT_1_00_MS), 0),
-							NULL);
+//			bno055_config.dev_en = true;
+//			app_timer_start(imu_poll_int_id,
+//							APP_TIMER_TICKS(MSEC_TO_UNITS(SMS_IMU_POLL_MS, UNIT_1_00_MS), 0),
+//							NULL);
+			nrf_drv_timer_enable(&US_COUNTER);
+			NRF_LOG_INFO("Timer enabled?\n\r");
 			bno055_interrupt.enabled = true;
+			bno055_interrupt.new_value = true;
 			bno055_config.dev_start = false;
 		}
 		
@@ -1518,6 +1548,7 @@ int main(void)
 			m_app_state.led[1] = LED_RUNNING;
 			m_app_state.sms = SMS_RUNNING;
 			bno055_interrupt.enabled = true;
+			bno055_interrupt.new_value = true;
 			bno055_config.dev_calib_done = false;
 		}
 		
@@ -1534,14 +1565,22 @@ int main(void)
 		if((bno055_interrupt.enabled) && (bno055_interrupt.new_value))
 		{
 //			nrf_gpio_pin_write(DBG2_PIN, 1);
-//			NRF_LOG_INFO("BNO055 interrupt\n\r");
+//			NRF_LOG_INFO("BNO055 new value\n\r");
 			bno055_interrupt.new_value = false;
-			if(ble_smss_sendquat) {
-				imu_poll_data(SMS_IMU_DATAMSK_QUAT);
-			}
-			else {
-				imu_poll_data(SMS_IMU_DATAMSK_EULER);
-			}
+			imu_poll_data(SMS_IMU_DATAMSK_ALL);
+			now = nrf_drv_timer_capture(&US_COUNTER, NRF_TIMER_CC_CHANNEL2);
+			NRF_LOG_DEBUG("Now: %ld\n\r", now);
+			delta_t = ((float)(now - last_update)/1000000.0);
+			last_update = now;
+			NRF_LOG_DEBUG("Delta T: " NRF_LOG_FLOAT_MARKER " us\n\r", NRF_LOG_FLOAT(delta_t));
+			nrf_delay_ms(254);
+			bno055_interrupt.new_value = true;
+//			if(ble_smss_sendquat) {
+//				imu_poll_data(SMS_IMU_DATAMSK_QUAT);
+//			}
+//			else {
+//				imu_poll_data(SMS_IMU_DATAMSK_EULER);
+//			}
 //			nrf_gpio_pin_write(DBG2_PIN, 0);
 		}
 		

@@ -176,6 +176,10 @@ enum Gscale {  // gyro full scale
 	GFS_125DPS    // 0x04
 };
 
+enum Godr {	// gyro sample rate
+	GORD_250Hz
+};
+
 enum GPwrMode { // GYR Pwr Mode
 	NormalG = 0,
 	FastPowerUpG,
@@ -283,7 +287,9 @@ typedef struct {
 	f2b_t gyro[3];
 	f2b_t mag[3];
 	f2b_t temp;
+	f2b_t quat_raw[4];
 	f2b_t quat[4];
+	f2b_t euler_raw[3];
 	f2b_t euler[4];
 	f2b_t lia[3];
 	f2b_t grv[3];

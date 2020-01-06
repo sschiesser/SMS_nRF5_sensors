@@ -312,7 +312,7 @@
           </ArmAdsMisc>
           <Cads>
             <interw>1</interw>
-            <Optim>4</Optim>
+            <Optim>1</Optim>
             <oTime>0</oTime>
             <SplitLS>0</SplitLS>
             <OneElfS>1</OneElfS>
@@ -401,6 +401,11 @@
               <FileName>sms_imu.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\sms_imu.c</FilePath>
+            </File>
+            <File>
+              <FileName>quaternion_filter.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\quaternion_filter.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -2107,6 +2112,11 @@
               <FileName>sms_imu.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\sms_imu.c</FilePath>
+            </File>
+            <File>
+              <FileName>quaternion_filter.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\quaternion_filter.c</FilePath>
             </File>
           </Files>
         </Group>

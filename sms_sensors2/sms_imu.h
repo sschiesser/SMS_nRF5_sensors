@@ -15,6 +15,7 @@
 
 #define SMS_IMU_CHAR_LEN		16
 
+#define SMS_IMU_DATAMSK_ALL		(1 << 7)
 #define SMS_IMU_DATAMSK_GRV		(1 << 6)
 #define SMS_IMU_DATAMSK_LIA		(1 << 5)
 #define SMS_IMU_DATAMSK_EULER	(1 << 4)
@@ -31,6 +32,10 @@
 
 
 #define PI						(3.1415926535897932384626433832795)
+
+//bno055_config_s bno055_config;
+//bno055_output_s bno055_output;
+//bno055_interrupt_s bno055_interrupt;
 
 // IMU data mask:
 // bit:  7  -  6  -  5  -   4   -   3  -  2  -   1  -   0 

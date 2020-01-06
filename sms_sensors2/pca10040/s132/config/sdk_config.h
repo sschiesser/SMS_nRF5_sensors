@@ -2399,7 +2399,7 @@
 // <e> TIMER_ENABLED - nrf_drv_timer - TIMER periperal driver
 //==========================================================
 #ifndef TIMER_ENABLED
-#define TIMER_ENABLED 0
+#define TIMER_ENABLED 1
 #endif
 #if  TIMER_ENABLED
 // <o> TIMER_DEFAULT_CONFIG_FREQUENCY  - Timer frequency if in Timer mode
@@ -2416,7 +2416,7 @@
 // <9=> 31.25 kHz 
 
 #ifndef TIMER_DEFAULT_CONFIG_FREQUENCY
-#define TIMER_DEFAULT_CONFIG_FREQUENCY 0
+#define TIMER_DEFAULT_CONFIG_FREQUENCY 4
 #endif
 
 // <o> TIMER_DEFAULT_CONFIG_MODE  - Timer mode or operation
@@ -2425,7 +2425,7 @@
 // <1=> Counter 
 
 #ifndef TIMER_DEFAULT_CONFIG_MODE
-#define TIMER_DEFAULT_CONFIG_MODE 0
+#define TIMER_DEFAULT_CONFIG_MODE 1
 #endif
 
 // <o> TIMER_DEFAULT_CONFIG_BIT_WIDTH  - Timer counter bit width
@@ -2467,14 +2467,14 @@
  
 
 #ifndef TIMER1_ENABLED
-#define TIMER1_ENABLED 1
+#define TIMER1_ENABLED 0
 #endif
 
 // <q> TIMER2_ENABLED  - Enable TIMER2 instance
  
 
 #ifndef TIMER2_ENABLED
-#define TIMER2_ENABLED 0
+#define TIMER2_ENABLED 1
 #endif
 
 // <q> TIMER3_ENABLED  - Enable TIMER3 instance
